@@ -54,6 +54,12 @@ input {
     mouse {
         // defaults (no natural-scroll for the mouse)
     }
+
+    // Focus-follows-mouse: hovering a window focuses it — no click needed.
+    focus-follows-mouse {
+        enable
+        max-scroll-amount 3   // scroll up to 3 columns when hitting the screen edge
+    }
 }
 
 // ── Layout (Look & Feel) ────────────────────────────────────

@@ -681,14 +681,14 @@ comment. Wiki: <https://niri-wm.github.io/niri/>.
 | Lines | Section | What it does |
 |---|---|---|
 | 10-35 | `environment` | environment variables for all Wayland apps |
-| 37-58 | `input` | keyboard + touchpad settings |
-| 60-135 | `layout` | gaps, centering, presets, focus ring, shadows, tab indicator |
-| 136-143 | startup | spawns quickshell (the bar) + wallpaper restore |
-| 144-152 | misc | CSD handling, screenshots |
-| 153-200 | `animations` | springs + easings — the "alive" feel (below) |
-| 201-232 | window rules | corner radius, opacity, quickshell/pandora behavior |
-| 233-244 | layer rules | backdrop placement for quickshell + pandora |
-| 245-412 | `binds` | all keybindings |
+| 37-64 | `input` | keyboard + touchpad + focus-follows-mouse |
+| 65-140 | `layout` | gaps, centering, presets, focus ring, shadows, tab indicator |
+| 142-149 | startup | spawns quickshell (the bar) + wallpaper restore |
+| 150-158 | misc | CSD handling, screenshots |
+| 159-206 | `animations` | springs + easings — the "alive" feel (below) |
+| 207-238 | window rules | corner radius, opacity, quickshell/pandora behavior |
+| 239-250 | layer rules | backdrop placement for quickshell + pandora |
+| 251-418 | `binds` | all keybindings |
 
 ### 🌍 `environment` — what apps see
 
@@ -720,6 +720,7 @@ mouse   { }                   // defaults
 | `numlock` | NumLock on at boot |
 | `touchpad { tap }` | tap-to-click |
 | `natural-scroll` | macOS-style scrolling |
+| `focus-follows-mouse` | **hover to focus** — hovering a window focuses it without clicking; `max-scroll-amount 3` scrolls up to 3 columns when the cursor hits the screen edge |
 
 Change keyboard layout with: `localectl set-x11-keymap us` (or `de`, `fr`, …).
 
@@ -1112,6 +1113,7 @@ Saved to `~/Pictures/Screenshots/` (see `screenshot-path` in the config).
 
 | Where | Action |
 |---|---|
+| anywhere (hover) | **focus-follows-mouse** — no click needed to focus a window |
 | bar workspace pill | click = jump to that workspace |
 | touchpad | tap to click, natural (macOS-style) scrolling |
 | top-left hot corner | opens the overview (if enabled) |
