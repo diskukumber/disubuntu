@@ -1,8 +1,6 @@
-# 🐧 diskukumber · Ubuntu non-LTS (6-month fixed release) + niri Setup
+# 🐧 disubuntu · Ubuntu interim
 
-A scrollable-tiling Wayland desktop on Ubuntu — **niri** compositor, a
-hand-written **quickshell** bar, Ghostty, Helium browser, hybrid Intel+NVIDIA
-graphics. Fedora-style 6-month release cadence (apt-based), lean by design.
+An Ubuntu interim-based setup, lean by design, refreshed on the interim release cadence.
 
 > [!NOTE]
 > 🚧 **Still under development** — this documentation is updated as the setup develops.
