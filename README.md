@@ -1,4 +1,4 @@
-# 🐧 diskukumber · Ubuntu 26.04 + niri Setup
+# 🐧 diskukumber · Ubuntu non-LTS (6-month fixed release) + niri Setup
 
 A scrollable-tiling Wayland desktop on Ubuntu — **niri** compositor, a
 hand-written **quickshell** bar, Ghostty, Helium browser, hybrid Intel+NVIDIA
@@ -22,7 +22,7 @@ graphics. Fedora-style 6-month release cadence (apt-based), lean by design.
 | [🧱 The Quickshell Bar](#-the-quickshell-bar) | the hand-written bar: files, IPC, patterns, launcher |
 | [⌨️ Key Bindings](#-key-bindings) | the full cheat sheet |
 | [🎮 NVIDIA](#-nvidia) | driver, modeset, VRAM fix, groups, diagnostics |
-| [🚧 Work In Progress](#-work-in-progress) | done & open tasks, incl. the 26.10 interim plan |
+| [🚧 Work In Progress](#-work-in-progress) | done & open tasks, incl. the fixed-release (6-month) plan |
 | [📦 Packages & Details](#-packages--details) | the one-glance component table |
 | [🛠️ Troubleshooting & Known Issues](#-troubleshooting--known-issues) | symptom→fix table, logs, recovery recipes |
 | [🧹 Maintenance & Service Inventory](#-maintenance--service-inventory) | cleanup, services, dotfiles, routine care |
@@ -50,7 +50,7 @@ docs/system/screenshots/<name>.png
 ## 📥 Installation
 
 <details>
-<summary><h3>📥 INSTALLATION — Ubuntu 26.04 LTS</h3></summary>
+<summary><h3>📥 INSTALLATION — Ubuntu non-LTS fixed release</h3></summary>
 
 > [!TIP]
 > Start from a fresh [Ubuntu Server](https://ubuntu.com/server) **minimal**
@@ -962,7 +962,7 @@ ls /dev/dri/                                 # card0 = Intel, card1 = NVIDIA
 - [ ] Restore audio (pipewire/wireplumber was purged with the GNOME cleanup) + volume keys via `wpctl`.
 - [ ] Wallpaper layer (optional quickshell backdrop; solid `#111111` for now).
 - [ ] Bluetooth: not installed yet (bluez optional).
-- [ ] **Release cadence: switch from LTS to interim-stable** — when **26.10** lands (October 2026), `sudo do-release-upgrade`, then repeat every 6 months (26.10 → 27.04 → 27.10 …). Fedora-style cadence, apt-based (no dnf/rpm): 9 months of support per release.
+- [ ] **Release cadence: non-LTS fixed release** — each 6 months `sudo do-release-upgrade` to the next non-LTS release, repeating every 6 months (Fedora-style cadence, apt-based, no dnf/rpm: ~9 months of support per release).
 - [ ] Screen locker (none yet — `Mod+Shift+E` quits back to greetd).
 
 ---
@@ -974,7 +974,7 @@ ls /dev/dri/                                 # card0 = Intel, card1 = NVIDIA
 
 |  |  |
 | :-- | --- |
-🖥️ Distribution | [Ubuntu](https://ubuntu.com/) 26.04 LTS (Resolute Raccoon) — Server minimal
+🖥️ Distribution | [Ubuntu](https://ubuntu.com/) non-LTS fixed release (6-month cadence) — Server minimal
 📦 Package manager | [nala](https://gitlab.com/volian/nala) 0.16.0 — pretty apt frontend (mirrors in `/etc/nala/sources.list`, aliases in `~/.bash_aliases`)
 🪟 Compositor | [niri](https://niri-wm.github.io/niri/) (scrollable tiling, pure Wayland)
 💻 Terminal Emulator | [Ghostty](https://ghostty.org/) (native Wayland, GPU-accelerated)
@@ -1294,7 +1294,7 @@ current desktop state        ──┘           ▲
 **▶️ Install (rebuild the whole desktop from a fresh install):**
 
 ```bash
-# 1. Add the danklinux PPA (provides quickshell + niri on 26.04)
+# 1. Add the danklinux PPA (provides quickshell + niri on non-LTS releases)
 sudo add-apt-repository -y ppa:avengemedia/danklinux
 
 # 2. Add the Helium browser repo (real .deb, no snap)
@@ -1370,9 +1370,9 @@ systemctl list-unit-files --type=service --state=enabled --no-pager | \
 
 ## ℹ️ Quick facts
 
-- 🖥️ **OS**: Ubuntu 26.04 LTS (Resolute Raccoon), fresh install
-- 📆 **Release plan**: interim-stable cadence — move off LTS to the 6-month releases
-  (26.10 → 27.04 → …) via `do-release-upgrade`, starting October 2026 (see [🚧 Work In Progress](#-work-in-progress))
+- 🖥️ **OS**: Ubuntu non-LTS (6-month fixed release), fresh minimal server install
+- 📆 **Release plan**: non-LTS fixed-release cadence — bump to the next non-LTS release every 6 months
+  via `sudo do-release-upgrade` (see [🚧 Work In Progress](#-work-in-progress))
 - 🪟 **Compositor**: niri (scrollable tiling Wayland compositor)
 - 🧱 **Shell**: a small hand-written quickshell UI (top bar: workspaces, net/mem/cpu stats, keyboard, date/clock, tray; bottom bar: app launcher + window taskbar)
 - 💻 **Terminal**: Ghostty
