@@ -720,7 +720,7 @@ mouse   { }                   // defaults
 | `numlock` | NumLock on at boot |
 | `touchpad { tap }` | tap-to-click |
 | `natural-scroll` | macOS-style scrolling |
-| `focus-follows-mouse` | **hover to focus** — hovering a window focuses it without clicking; `max-scroll-amount 3` scrolls up to 3 columns when the cursor hits the screen edge |
+| `focus-follows-mouse` | **hover to focus** — hovering a window focuses it without clicking; `max-scroll-amount="0%"` only focuses windows already fully on screen (no surprise scrolling). Remove the argument to also focus off-screen windows by scrolling to the edge |
 
 Change keyboard layout with: `localectl set-x11-keymap us` (or `de`, `fr`, …).
 

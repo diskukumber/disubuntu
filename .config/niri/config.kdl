@@ -56,10 +56,9 @@ input {
     }
 
     // Focus-follows-mouse: hovering a window focuses it — no click needed.
-    focus-follows-mouse {
-        enable
-        max-scroll-amount 3   // scroll up to 3 columns when hitting the screen edge
-    }
+    // max-scroll-amount="0%" = only focus windows already fully on screen
+    // (no surprise view scrolling). Remove it to allow edge-scroll focusing.
+    focus-follows-mouse max-scroll-amount="0%"
 }
 
 // ── Layout (Look & Feel) ────────────────────────────────────
