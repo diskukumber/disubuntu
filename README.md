@@ -255,22 +255,33 @@ already bound to `wpctl` in the config).
 [🧩 Software stack & package inventory](#-software-stack--package-inventory)
 (every package is listed there with a "why" column).
 
-**5f. Post-install cleanup — GNOME leftovers that came with niri's portal deps:**
+**5f. Post-install cleanup — GNOME leftovers that came with niri's deps:**
 
-`niri` recommends `xdg-desktop-portal-gnome`, which pulls in a whole GNOME
-chain: `nautilus` → `gvfs*` → `avahi-daemon`/`udisks2` + `ipp-usb`. We don't
-need a file manager or GNOME portal backend, so remove the chain
-(`xdg-desktop-portal` + `xdg-desktop-portal-gtk` stay — base portal support):
+Two chains sneak in through niri's recommendations and gnome-keyring — a file
+manager/portal chain and an indexer/calendar chain. Neither is used here:
+
+1. **File manager + portal chain** (`niri` recommends `xdg-desktop-portal-gnome`):
+   `nautilus` → `gvfs*` → `avahi-daemon`/`udisks2` + `ipp-usb`
+2. **Indexer + calendar chain** (pulled by `gnome-keyring`, which we keep):
+   `localsearch` (tracker indexer) + `evolution-data-server` (mail/calendar
+   backend) + `bluez-obexd` — these spawn 5 background user services
+   (evolution-* ×4, localsearch-3)
+
+Remove both chains (`xdg-desktop-portal` + `xdg-desktop-portal-gtk` stay —
+base portal support; `gnome-keyring` stays — needed for secrets):
 
 ```bash
 sudo apt-get purge -y xdg-desktop-portal-gnome nautilus gvfs gvfs-backends \
-  gvfs-daemons avahi-daemon udisks2 ipp-usb
+  gvfs-daemons avahi-daemon udisks2 ipp-usb localsearch \
+  evolution-data-server evolution-data-server-common bluez-obexd
 sudo apt-get autoremove --purge -y
 ```
 
 > [!NOTE]
 > If you ever install a GTK file manager or need GNOME-style file dialogs,
 > `sudo apt install nautilus` brings the chain back automatically — harmless.
+> The evolution/localsearch user services stop on their own once purged; a
+> session restart drops any lingering units.
 
 ---
 
@@ -379,7 +390,7 @@ cat /sys/class/drm/card1/device/... # raw GPU info if needed
 ## 🧩 Software stack & package inventory
 
 What runs, what each piece does, and every installed package by category.
-(Full `dpkg` list: **1117 packages**; manually installed: **73** — snapshot 2026-08-04.)
+(Full `dpkg` list: **961 packages**; manually installed: **70** — snapshot 2026-08-04, after the step-3/5f purge.)
 
 ### 🗺️ The whole setup, one diagram
 
@@ -1332,27 +1343,36 @@ du -sh ~/.cache
 | `open-iscsi`, `multipath-tools`, `modemmanager` | iSCSI/SAN/mobile-broadband leftovers from the server image | **removed** |
 | `cloud-init` + `cloud-init-base` | cloud provisioning; unused on bare metal (5 services) | **purged** |
 | `snapd` | running with **0 snaps installed** | **purged** (7 services) |
-| `kdump-tools`, `apport` | crash dump/reporting, no value here | **disabled** |
+| `kdump-tools`, `apport` (+core-dump-handler, +symptoms) | crash dump/reporting, no value here | **purged** (was: disabled) |
+| `pollinate`, `avahi-daemon`, `udisks2`, `networkd-dispatcher`, `unminimize` | Canonical/server leftovers | **purged** |
+| `nautilus`, `gvfs*`, `xdg-desktop-portal-gnome`, `ipp-usb` | GNOME file-manager/portal chain (niri Recommends) | **purged** |
+| `evolution-data-server` (+libs), `bluez-obexd`, `localsearch` | GNOME calendar/indexer chain (via gnome-keyring) — 5 user services stopped | **purged** |
 | apt cache | 834 MB of `.deb` archives + lists | **cleaned** (56 KB now) |
 | npm cache | 86 MB | **cleared** |
 | autoremove sweep | packagekit, usb-modeswitch, snapd-glib deps, appstream, etc. | **purged** (46 pkgs) |
 | journal | 25 MB | already small, vacuumed |
 
-Results: **~200 MB + 46 packages freed**; enabled services went 60 → 43 → **33 today** (verified 2026-08-04).
+Results: **~200 MB + 46 packages freed**; enabled services went 60 → 43 → **30**
+today (verified 2026-08-04, after the full steps-3/5f purge).
 
-### ⚙️ Service inventory (enabled, system — 33 currently)
+### ⚙️ Service inventory (enabled, system — 30 currently)
 
-**✅ Enabled now:** `NetworkManager` + dispatcher · `chrony` · `systemd-resolved` ·
-`apparmor` · `unattended-upgrades` · `thermald` · `gpu-manager` · `udisks2` ·
+**✅ Enabled now:** `NetworkManager` (+dispatcher/wait-online) · `chrony` ·
+`systemd-resolved` · `systemd-networkd` (+wait-online, netplan-configure) ·
+`apparmor` · `unattended-upgrades` · `thermald` · `gpu-manager` ·
 `nvidia-suspend/resume/hibernate/powerd` (hybrid graphics) · `wpa_supplicant` ·
-`accounts-daemon` · `avahi-daemon` (optional, mDNS) · `lvm2-monitor`
+`accounts-daemon` · `lvm2-monitor` · `blk-availability` · `console-setup` ·
+`keyboard-setup` · `setvtrgb` · `e2scrub_reap` · `finalrd` · `grub2-common` ·
+`grub-initrd-fallback` · `secureboot-db` · `systemd-pstore` · `getty@`
 
 **⏸️ Installed but not enabled:** `greetd` (login manager — **disabled**, see
-[🚀 Session Startup](#-session-startup)) · `kdump-tools` (disabled) · `apport`
-(disabled)
+[🚀 Session Startup](#-session-startup))
 
-**🗑️ Not installed (already handled in cleanup):** `cloud-init` (purged) · `snapd`
-(purged) · `multipath-tools`, `open-iscsi`, `ModemManager` (removed) ·
+**🗑️ Not installed (purged by steps 3 + 5f):** `cloud-init` · `snapd` ·
+`apport` · `kdump-tools` · `pollinate` · `avahi-daemon` · `udisks2` ·
+`networkd-dispatcher` · `unminimize` · `nautilus`/`gvfs*` ·
+`xdg-desktop-portal-gnome` · `evolution-data-server` · `localsearch` ·
+`multipath-tools`, `open-iscsi`, `ModemManager`, `lxd-installer` ·
 `power-profiles-daemon`, `systemd-oomd`, `switcheroo-control`, `bluez` (never
 installed)
 
@@ -1514,8 +1534,8 @@ NVIDIA → network).
 
 ### 🗃️ Reference snapshots
 
-Current machine state (snapshot 2026-08-04): **1117 packages** installed,
-**73 manually installed**, **33 enabled services**. Regenerate these lists
+Current machine state (snapshot 2026-08-04): **961 packages** installed,
+**70 manually installed**, **30 enabled services**. Regenerate these lists
 anytime with:
 
 ```bash
