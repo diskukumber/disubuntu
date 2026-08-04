@@ -82,23 +82,57 @@ docs/system/screenshots/<name>.png
 
 ### 2️⃣ What the minimal install comes with
 
-The base image gives you a *working system and nothing else*:
+The **"Minimized"** profile installs the `ubuntu-server-minimal` metapackage
+(~27 direct deps) plus the installer base layer. Two kinds of things are in it:
+**essentials** (keep) and **Canonical extras** (we remove in step 3):
 
-| Component | Ships with minimal? | Note |
+**Keep — the essentials:**
+
+| Component | What it is |
+|---|---|
+| `linux-generic` kernel + `grub-efi-amd64` + `shim-signed` | the boot stack (Secure Boot), never touched |
+| `systemd` + `systemd-resolved` + `journald` | the service manager + DNS resolver + logs |
+| `apt` | package manager (we add `nala` as a frontend later) |
+| `openssh-server` | headless access |
+| `sudo` / `sudo-rs`, `udev`, `locales`, `nano` | base userland |
+| `chrony`, `apparmor`, `unattended-upgrades` | time sync, security, auto security updates |
+| `ubuntu-drivers-common`, `ubuntu-release-upgrader-core` | GPU driver handling + the upgrader (needed for step 4!) |
+| `gpu-manager` service | GPU detection (ships with `ubuntu-drivers-common`) |
+
+**Remove — the Canonical/server extras (step 3 purges these):**
+
+| Package | What it is | Why remove |
 |---|---|---|
-| Linux kernel (`linux-generic`) + GRUB/EFI + Secure Boot | ✅ | installer-level, never touched |
-| `systemd` (init + resolved + networkd + journald) | ✅ | the service manager |
-| `apt` + `nala` (not installed; alias later) | ✅ / ⬜ | `nala` added in step 5 |
-| SSH server | ✅ | headless access |
-| `snapd`, `cloud-init`, LXD, iSCSI, multipath, ModemManager | ⬜ (minimized) | *still purge them defensively*, see step 3 |
-| Desktop, display manager, GUI apps | ❌ | we add our own stack |
+| `snapd` | snap framework | 7 daemons for 0 snaps |
+| `cloud-init` | cloud provisioning | unused on bare metal (5 services) |
+| `open-iscsi`, `multipath-tools`, `modemmanager` | SAN / multipath / mobile-broadband | server-image leftovers |
+| `apport` (+core-dump-handler, +symptoms) | crash reporting | useless on a personal machine |
+| `kdump-tools` | kernel crash dumps | a laptop never crash-dumps to disk |
+| `pollinate` | Canonical entropy seeding | cloud-image feature |
+| `avahi-daemon` | mDNS/Bonjour | nothing here uses it |
+| `udisks2` | storage D-Bus daemon | no file manager needs it |
+| `networkd-dispatcher` | systemd-networkd event handler | we use NetworkManager, not networkd |
+| `lxd-installer` | LXD container wrapper | no containers |
+
+**Optional (judgment call, safe to keep):**
+
+| Package | Note |
+|---|---|
+| `thermald` | Intel thermal daemon — useful on a laptop, tiny; keep unless you want zero daemons |
+| `accountsservice` | user-account D-Bus — greetd/agreety works without it |
+| `needrestart` | reminds you to restart daemons after library upgrades — genuinely useful, keep |
+
+> [!NOTE]
+> `nautilus`, `gvfs*` and `xdg-desktop-portal-gnome` are **not** in the base —
+> they sneak in later as dependencies of niri's portal recommendations. They're
+> removed in step 5f, after the stack install.
 
 ---
 
 ### 3️⃣ Strip it down further — no snaps, no unused packages, nothing in the background
 
-Even the minimized profile ships a few leftovers. Remove them so **nothing runs
-in the background** beyond systemd, and no snap exists anywhere:
+Remove the Canonical extras so **nothing runs in the background** beyond
+systemd, and no snap exists anywhere:
 
 ```bash
 # 3a. Purge snap — completely gone (no daemons, no loop mounts, no /snap)
@@ -112,14 +146,15 @@ sudo rm -rf /etc/cloud /var/lib/cloud
 # 3c. Remove SAN/multipath/mobile-broadband leftovers from the server image
 sudo apt-get purge -y open-iscsi multipath-tools modemmanager
 
-# 3d. Disable crash/reporting leftovers
-sudo systemctl disable --now kdump-tools apport
+# 3d. Purge crash-reporting + Canonical extras (not just disable — uninstall)
+sudo apt-get purge -y apport apport-core-dump-handler apport-symptoms kdump-tools \
+  pollinate avahi-daemon udisks2 networkd-dispatcher
 
 # 3e. Clean apt + journal caches
 sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/* && sudo apt-get update
 sudo journalctl --vacuum-size=200M
 
-# 3f. Verify: nothing snap, nothing cloud, no iscsi/multipath/modem
+# 3f. Verify: nothing snap, nothing cloud, no iscsi/multipath/modem/avahi
 snap --version          # should fail: command not found
 systemctl list-unit-files --state=enabled --no-pager | wc -l   # baseline: ~33 services
 ```
@@ -218,6 +253,23 @@ already bound to `wpctl` in the config).
 **5e. What each package does** — see the full purpose tables in
 [🧩 Software stack & package inventory](#-software-stack--package-inventory)
 (every package is listed there with a "why" column).
+
+**5f. Post-install cleanup — GNOME leftovers that came with niri's portal deps:**
+
+`niri` recommends `xdg-desktop-portal-gnome`, which pulls in a whole GNOME
+chain: `nautilus` → `gvfs*` → `avahi-daemon`/`udisks2` + `ipp-usb`. We don't
+need a file manager or GNOME portal backend, so remove the chain
+(`xdg-desktop-portal` + `xdg-desktop-portal-gtk` stay — base portal support):
+
+```bash
+sudo apt-get purge -y xdg-desktop-portal-gnome nautilus gvfs gvfs-backends \
+  gvfs-daemons avahi-daemon udisks2 ipp-usb
+sudo apt-get autoremove --purge -y
+```
+
+> [!NOTE]
+> If you ever install a GTK file manager or need GNOME-style file dialogs,
+> `sudo apt install nautilus` brings the chain back automatically — harmless.
 
 ---
 
@@ -445,7 +497,7 @@ What runs, what each piece does, and every installed package by category.
 | Package | Purpose |
 |---|---|
 | `greetd` | login manager (text greeter: `agreety`) |
-| `xdg-desktop-portal` (+gnome/gtk backends) | screen sharing, file dialogs for sandboxed apps |
+| `xdg-desktop-portal` (+ `xdg-desktop-portal-gtk`) | screen sharing, file dialogs for sandboxed apps (the GNOME backend is deliberately removed in step 5f) |
 | `polkitd`, `pkexec` | privilege authorization for apps |
 | `accountsservice` | user account info (avatar etc.) |
 
