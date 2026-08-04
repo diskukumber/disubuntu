@@ -268,9 +268,9 @@ What runs, what each piece does, and every installed package by category.
 
 ### 🚫 What is intentionally NOT here
 
-- No X11 apps, no full X server (rootless `xwayland-satellite` 0.8.2 IS installed to run rare X11 apps)
+- No X11 apps, no full X server (rootless `xwayland-satellite` IS installed to run rare X11 apps)
 - No desktop environment, no display manager with GUI
-- No DMS/Noctalia/iNiR or any third-party shell config
+- No third-party shell config (waybar-ports, DMS-style shells, etc.)
 - No waybar, mako, swaybg, swaylock, grim, slurp (niri + our bar replace them)
 - No gammastep/nightlight, no polkit agent (keep it lean) — the tray lives in the top bar instead of a standalone daemon
 
@@ -462,13 +462,13 @@ comment. Wiki: <https://niri-wm.github.io/niri/>.
 
 | Lines | Section | What it does |
 |---|---|---|
-| 7-14 | `environment` | environment variables for all Wayland apps |
-| 16-34 | `input` | keyboard + touchpad settings |
-| 36-63 | `layout` | gaps, background, focus ring, shadows |
-| 65-68 | startup | spawns quickshell (the bar) |
-| 70-81 | misc | CSD handling, screenshots, animations |
-| 83-114 | window/layer rules | corner radius, opacity, quickshell behavior |
-| 116-257 | `binds` | all keybindings |
+| 10-35 | `environment` | environment variables for all Wayland apps |
+| 37-58 | `input` | keyboard + touchpad settings |
+| 60-87 | `layout` | gaps, background, focus ring, shadows |
+| 90-95 | startup | spawns quickshell (the bar) + wallpaper restore |
+| 97-108 | misc | CSD handling, screenshots |
+| 111-152 | window/layer rules | corner radius, opacity, quickshell/pandora behavior |
+| 155-320 | `binds` | all keybindings |
 
 ### 🌍 `environment` — what apps see
 
@@ -740,9 +740,12 @@ pgrep -a quickshell
 
 | Keys | Action |
 |---|---|
-| `Mod+T` | open Ghostty (terminal) |
+| `Mod+T` (or `Mod+Return`) | open Ghostty (terminal) |
 | `Mod+D` | open fuzzel (app launcher) |
 | `Mod+R` | open quickshell app launcher (see [🧱 The Quickshell Bar](#-the-quickshell-bar)) |
+| `Mod+S` | screenshot (drag to select area) |
+| `Ctrl+Space` | kando pie menu (needs kando) |
+| `XF86Tools` / `XF86Explorer` / `XF86Mail` | open spotify / nemo / thunderbird (needs the apps) |
 | `Mod+Shift+/` | hotkey help overlay |
 
 ### 🔊 Audio & brightness
@@ -752,6 +755,7 @@ pgrep -a quickshell
 | `XF86AudioRaiseVolume` / `Lower` | volume ±5% (works when locked) |
 | `XF86AudioMute` | mute sink |
 | `XF86AudioMicMute` | mute mic |
+| `XF86AudioNext` / `Prev` / `Play` / `Pause` / `Stop` | playerctl media control (needs playerctl) |
 | `XF86MonBrightnessUp` / `Down` | brightness ±10% (works when locked) |
 
 ### 🪟 Windows & columns
@@ -760,17 +764,18 @@ pgrep -a quickshell
 |---|---|
 | `Mod+Q` | close window |
 | `Mod+H/J/K/L` (or arrows) | focus left / down / up / right |
-| `Mod+Ctrl+H/J/K/L` | move focused window left / down / up / right |
+| `Mod+Shift+H/J/K/L` (or `Mod+Ctrl+H/J/K/L`) | move focused window left / down / up / right |
 | `Mod+Home` / `Mod+End` | first / last column |
-| `Mod+F` | maximize column |
-| `Mod+Shift+F` | fullscreen |
-| `Mod+Ctrl+V` | toggle floating |
+| `Mod+Ctrl+Home` / `Mod+Ctrl+End` | move column to first / last position |
+| `Mod+F` | fullscreen |
+| `Mod+Shift+F` | maximize column |
+| `Mod+Space` (or `Mod+Ctrl+V`) | toggle floating |
 | `Mod+Shift+V` | switch focus between floating and tiling |
 | `Mod+W` | toggle tabbed display in the column |
 | `Mod+[` / `Mod+]` | consume/expel window into/out of the column |
 | `Mod+,` / `Mod+.` | consume / expel |
 | `Mod+Ctrl+W` | cycle column width preset (1/3 · 1/2 · 2/3) |
-| `Mod+Shift+R` | …backwards |
+| `Mod+Ctrl+Shift+W` | …backwards |
 | `Mod+Ctrl+Shift+R` | cycle window height presets |
 | `Mod+Ctrl+R` | reset window height |
 | `Mod+-` / `Mod+=` | column width −/+ 10% |
@@ -784,9 +789,9 @@ pgrep -a quickshell
 | Keys | Action |
 |---|---|
 | `Mod+U` / `Mod+I` (or PgUp/PgDn) | previous / next workspace |
-| `Mod+Ctrl+U/I` | move column to previous / next workspace |
-| `Mod+1` … `Mod+9` | jump to workspace 1–9 |
-| `Mod+Ctrl+1` … `Mod+Ctrl+9` | move column to workspace 1–9 |
+| `Mod+Ctrl+Page_Down` / `Mod+Ctrl+Page_Up` | move column to previous / next workspace |
+| `Mod+1` … `Mod+0` | jump to workspace 1–10 |
+| `Mod+Shift+1` … `Mod+Shift+0` | move column to workspace 1–10 |
 | `Mod+O` | overview (bird's-eye view of all workspaces) |
 | `Mod+WheelUp/Down` | previous / next workspace |
 | `Mod+Ctrl+WheelUp/Down` | move column to workspace |
@@ -797,8 +802,8 @@ pgrep -a quickshell
 
 | Keys | Action |
 |---|---|
-| `Mod+Shift+H/J/K/L` | focus monitor left / down / up / right |
-| `Mod+Ctrl+Shift+H/J/K/L` | move column to monitor |
+| `Mod+Alt+Left/Right/Up/Down` | focus monitor left / right / up / down |
+| `Mod+Shift+Alt+Left/Right/Up/Down` | move column to monitor |
 
 ### 📸 Screenshots
 
@@ -814,8 +819,9 @@ Saved to `~/Pictures/Screenshots/` (see `screenshot-path` in the config).
 
 | Keys | Action |
 |---|---|
-| `Mod+Shift+E` | quit niri (back to greetd login) |
+| `Mod+Shift+E` (or `Mod+Shift+Q`) | quit niri (back to greetd login) |
 | `Ctrl+Alt+Delete` | quit niri |
+| `Mod+Shift+R` | reload config |
 | `Mod+Shift+P` | power off monitors |
 | `Mod+Escape` | toggle keyboard-shortcut inhibitor (for remote-desktop apps) |
 
@@ -973,7 +979,7 @@ ls /dev/dri/                                 # card0 = Intel, card1 = NVIDIA
 |  |  |
 | :-- | --- |
 🖥️ Distribution | [Ubuntu](https://ubuntu.com/) interim (6-month release cadence) — Server minimal
-📦 Package manager | [nala](https://gitlab.com/volian/nala) 0.16.0 — pretty apt frontend (mirrors in `/etc/nala/sources.list`, aliases in `~/.bash_aliases`)
+📦 Package manager | [nala](https://gitlab.com/volian/nala) — pretty apt frontend (mirrors in `/etc/nala/sources.list`, aliases in `~/.bash_aliases`)
 🪟 Compositor | [niri](https://niri-wm.github.io/niri/) (scrollable tiling, pure Wayland)
 💻 Terminal Emulator | [Ghostty](https://ghostty.org/) (native Wayland, GPU-accelerated)
 🚀 Applications launcher | [quickshell](https://quickshell.org/) popup (Mod+R) • [fuzzel](https://codeberg.org/dnkl/fuzzel) (Mod+D)
@@ -983,7 +989,7 @@ ls /dev/dri/                                 # card0 = Intel, card1 = NVIDIA
 🔔 Compositor notifications | niri (built-in)
 📸 Screenshots | niri (built-in: `Print` family)
 📋 Clipboard Manager | [wl-clipboard](https://github.com/bugaevc/wl-clipboard) (`wl-copy` / `wl-paste`)
-🖼️ Wallpaper | [awww](https://codeberg.org/hurlbutt/awww) 0.12.1 (images/GIFs, built from source) • [pandora](https://github.com/PandorasFox/pandora) 1.0.0 (parallax scroll) — swap with `wp` / `wp --parallax`
+🖼️ Wallpaper | [awww](https://codeberg.org/hurlbutt/awww) (images/GIFs, built from source) • [pandora](https://github.com/PandorasFox/pandora) (parallax scroll) — swap with `wp` / `wp --parallax`
 🔐 Authentication agent | polkitd
 🌐 Network management | [NetworkManager](https://networkmanager.dev/) + `wpa_supplicant`
 📡 Bluetooth | not installed — `bluez` + `bluez-utils` optional (see [📥 Installation](#-installation))
