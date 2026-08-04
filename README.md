@@ -361,6 +361,18 @@ A **hybrid-graphics laptop** — TWO GPUs, and the desktop can use either one.
 | RAM | 14 GiB |
 | Storage | 500 GB NVMe (`nvme0n1`) + 238 GB NVMe (`nvme1n1`) |
 | Kernel | Linux 7.0.0-28-generic |
+| Displays | 🖥️ **eDP-2** (built-in BOE panel, 1920×1080 @ **120 Hz**) · 🖥️ **HDMI-A-1** (Sharp TV, 1920×1080 @ **60 Hz** — forced over its 50 Hz preferred mode) |
+
+### 🖥️ Displays (configured in `outputs`)
+
+| Output | Mode | Position | Notes |
+|---|---|---|---|
+| `eDP-2` (BOE panel) | `1920x1080@120.002` | `x=0 y=0` | **focus-at-startup** — the main screen |
+| `HDMI-A-1` (Sharp TV) | `1920x1080@60.000` | `x=1920 y=0` | TV prefers 50 Hz; config forces 60 Hz for a smoother desktop |
+
+Both use `backdrop-color "#111111"` (visible in the Overview between
+workspaces). Neither output supports VRR (checked via `niri msg outputs`).
+Find your modes/positions anytime with `niri msg outputs`.
 
 ### 🎛️ The two GPUs
 
@@ -681,14 +693,16 @@ comment. Wiki: <https://niri-wm.github.io/niri/>.
 | Lines | Section | What it does |
 |---|---|---|
 | 10-35 | `environment` | environment variables for all Wayland apps |
-| 37-64 | `input` | keyboard + touchpad + focus-follows-mouse |
-| 65-140 | `layout` | gaps, centering, presets, focus ring, shadows, tab indicator |
-| 142-149 | startup | spawns quickshell (the bar) + wallpaper restore |
-| 150-158 | misc | CSD handling, screenshots |
-| 159-206 | `animations` | springs + easings — the "alive" feel (below) |
-| 207-238 | window rules | corner radius, opacity, quickshell/pandora behavior |
-| 239-250 | layer rules | backdrop placement for quickshell + pandora |
-| 251-418 | `binds` | all keybindings |
+| 37-63 | `input` | keyboard + touchpad + focus-follows-mouse |
+| 64-80 | `outputs` | eDP-2 (120Hz panel) + HDMI-A-1 (60Hz TV), positions, backdrop |
+| 81-89 | `gestures` | hot corners → Overview toggle |
+| 90-166 | `layout` | gaps, centering, presets, focus ring, shadows, tab indicator |
+| 167-174 | startup | spawns quickshell (the bar) + wallpaper restore |
+| 175-183 | misc | CSD handling, screenshots |
+| 184-231 | `animations` | springs + easings — the "alive" feel (below) |
+| 232-263 | window rules | corner radius, opacity, quickshell/pandora behavior |
+| 264-275 | layer rules | backdrop placement for quickshell + pandora |
+| 276-443 | `binds` | all keybindings |
 
 ### 🌍 `environment` — what apps see
 
@@ -723,6 +737,44 @@ mouse   { }                   // defaults
 | `focus-follows-mouse` | **hover to focus** — hovering a window focuses it without clicking; `max-scroll-amount="0%"` only focuses windows already fully on screen (no surprise scrolling). Remove the argument to also focus off-screen windows by scrolling to the edge |
 
 Change keyboard layout with: `localectl set-x11-keymap us` (or `de`, `fr`, …).
+
+### 🖥️ `outputs` — the two displays
+
+```kdl
+output "eDP-2" {
+    mode "1920x1080@120.002"
+    position x=0 y=0
+    focus-at-startup
+    backdrop-color "#111111"
+}
+
+output "HDMI-A-1" {
+    mode "1920x1080@60.000"     // TV prefers 50 Hz; force 60 for smoothness
+    position x=1920 y=0
+    backdrop-color "#111111"
+}
+```
+
+| Setting | What it does |
+|---|---|
+| `mode "1920x1080@120.002"` | exact refresh rate — must match `niri msg outputs` to 3 decimals |
+| `position x=… y=…` | logical-pixel placement; drives `focus-monitor-*` direction |
+| `focus-at-startup` | niri focuses the laptop panel on start |
+| `backdrop-color "#111111"` | overview/backdrop color, matches the background |
+| `variable-refresh-rate` | off here — neither output supports VRR |
+
+### 🖱️ `gestures` — hot corners
+
+```kdl
+gestures {
+    hot-corners {
+        top-left
+    }
+}
+```
+
+Mouse into the **top-left corner** → toggles the Overview (`Mod+O`). `off`
+disables; corners can be overridden per-output in `outputs`.
 
 ### 🖼️ `layout` — how windows look
 
@@ -1116,7 +1168,7 @@ Saved to `~/Pictures/Screenshots/` (see `screenshot-path` in the config).
 | anywhere (hover) | **focus-follows-mouse** — no click needed to focus a window |
 | bar workspace pill | click = jump to that workspace |
 | touchpad | tap to click, natural (macOS-style) scrolling |
-| top-left hot corner | opens the overview (if enabled) |
+| **top-left corner** | **hot corner → Overview toggle** (enabled in `gestures`) |
 
 ### ➕ Adding/removing binds
 
