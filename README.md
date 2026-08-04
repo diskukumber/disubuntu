@@ -682,13 +682,13 @@ comment. Wiki: <https://niri-wm.github.io/niri/>.
 |---|---|---|
 | 10-35 | `environment` | environment variables for all Wayland apps |
 | 37-58 | `input` | keyboard + touchpad settings |
-| 60-87 | `layout` | gaps, background, focus ring, shadows |
-| 90-95 | startup | spawns quickshell (the bar) + wallpaper restore |
-| 97-103 | misc | CSD handling, screenshots |
-| 105-152 | `animations` | springs + easings — the "alive" feel (below) |
-| 155-180 | window rules | corner radius, opacity, quickshell/pandora behavior |
-| 185-192 | layer rules | backdrop placement for quickshell + pandora |
-| 199-364 | `binds` | all keybindings |
+| 60-135 | `layout` | gaps, centering, presets, focus ring, shadows, tab indicator |
+| 136-143 | startup | spawns quickshell (the bar) + wallpaper restore |
+| 144-152 | misc | CSD handling, screenshots |
+| 153-200 | `animations` | springs + easings — the "alive" feel (below) |
+| 201-232 | window rules | corner radius, opacity, quickshell/pandora behavior |
+| 233-244 | layer rules | backdrop placement for quickshell + pandora |
+| 245-412 | `binds` | all keybindings |
 
 ### 🌍 `environment` — what apps see
 
@@ -726,13 +726,30 @@ Change keyboard layout with: `localectl set-x11-keymap us` (or `de`, `fr`, …).
 ### 🖼️ `layout` — how windows look
 
 ```kdl
-gaps 8                     // spacing between windows (logical px)
-background-color "#111111" // dark background (no wallpaper in this setup)
-focus-ring { width 2 ... } // thin ring around the focused window
-border { off }             // no permanent borders
-shadow  { on ... }         // soft drop shadows
-default-column-width { proportion 0.5; } // new windows take half the screen
+gaps 5                                  // spacing between windows (logical px)
+center-focused-column "on-overflow"     // center focused column when it doesn't fit
+always-center-single-column             // lone column always centers
+empty-workspace-above-first             // blank workspace above workspace 1
+background-color "#111111"              // dark background (no wallpaper in this setup)
+preset-column-widths { 0.25 0.33333 0.5 0.66667 0.75 }
+preset-window-heights { 0.25 0.33333 0.5 0.66667 0.75 }
+focus-ring { width 2 ... }              // thin Gruvbox ring around the focused window
+border { off }                          // no permanent borders
+shadow  { on ... }                      // soft drop shadows
+tab-indicator { ... }                   // visible tab in tabbed mode (Mod+W)
+insert-hint { color "#8ec07c80" }       // shows drop position when dragging
 ```
+
+**The productivity bits** (tuned for a single-screen laptop):
+
+| Option | What it does |
+|---|---|
+| `center-focused-column "on-overflow"` | focusing a column centers it when it won't fit next to the previous one — you always see what you're working on |
+| `always-center-single-column` | one window on a workspace sits dead-center, not off to a side |
+| `empty-workspace-above-first` | scrolling up from workspace 1 lands on a blank desktop (macOS-spaces style) |
+| `preset-column-widths` / `preset-window-heights` | **5 presets each**: ¼ · ⅓ · ½ · ⅔ · ¾ — 4-up grid, 3-up, and split-screen, all reachable with `Mod+Ctrl+W` / `Mod+Ctrl+Shift+R` |
+| `tab-indicator` | when a column is tabbed (`Mod+W`), a Gruvbox-colored indicator shows which tab is active — hidden when the column has one window |
+| `insert-hint` | dragging a window with the mouse shows a colored line where it will land |
 
 > [!TIP]
 > Want a wallpaper later? Set `background-color "transparent"` and run a

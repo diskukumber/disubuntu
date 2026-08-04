@@ -60,14 +60,46 @@ input {
 layout {
     gaps 5
 
+    // Productivity: a lone column always centers; when switching focus,
+    // the focused column centers itself if it wouldn't fit alongside the
+    // previous one (best of both on a single screen).
+    center-focused-column "on-overflow"
+    always-center-single-column
+
+    // Empty workspace above the first one — scrolling up from workspace 1
+    // lands on a blank desktop instead of the edge (like macOS spaces).
+    empty-workspace-above-first
+
     // Wallpaper is drawn by awww/pandora (see Startup); this is the fallback.
     background-color "#111111"
+
+    // Width presets: 4-up grid (25/75), 3-up (1/3), and half-and-half.
+    // Cycle with Mod+Ctrl+W (back: Mod+Ctrl+Shift+W).
+    preset-column-widths {
+        proportion 0.25
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+        proportion 0.75
+    }
+
+    // Same idea for window heights — cycle with Mod+Ctrl+Shift+R.
+    preset-window-heights {
+        proportion 0.25
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+        proportion 0.75
+    }
+
+    default-column-width { proportion 0.5; }
 
     // Gruvbox focus ring (matches the old hypr border colors).
     focus-ring {
         width 2
         active-color "#8ec07c"
         inactive-color "#d79921"
+        urgent-color "#fb4934"   // red when a window wants attention
     }
 
     border {
@@ -82,7 +114,23 @@ layout {
         color "#0007"
     }
 
-    default-column-width { proportion 0.5; }
+    // Tabbed columns (Mod+W): visible indicator so you know you're in
+    // tabbed mode; hidden when a column holds a single window.
+    tab-indicator {
+        hide-when-single-tab
+        width 3
+        position "right"
+        gap 5
+        corner-radius 8
+        active-color "#8ec07c"
+        inactive-color "#3c3836"
+        urgent-color "#fb4934"
+    }
+
+    // When dragging a window with the mouse, show where it will land.
+    insert-hint {
+        color "#8ec07c80"
+    }
 }
 
 // ── Startup (Autostart) ─────────────────────────────────────
