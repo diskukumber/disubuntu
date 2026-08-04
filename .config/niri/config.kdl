@@ -102,8 +102,52 @@ hotkey-overlay {
     // shows the "Important Hotkeys" popup on first start
 }
 
+// ── Animations ──────────────────────────────────────────────
+// "Alive" feel: springs with a hint of bounce (damping-ratio < 1
+// oscillates slightly at the end) + snappy easings for open/close.
+// Easing docs: https://easings.net · full ref: https://niri-wm.github.io/niri/Animations.html
 animations {
-    // defaults (slowdown 1.0)
+    // ── Workspace / view movement ──
+    workspace-switch {
+        spring damping-ratio=0.75 stiffness=900 epsilon=0.0001   // touch of bounce
+    }
+    horizontal-view-movement {
+        spring damping-ratio=0.8 stiffness=850 epsilon=0.0001    // camera scroll
+    }
+
+    // ── Windows ──
+    window-open {
+        duration-ms 180
+        curve "cubic-bezier" 0.05 0.7 0.1 1                      // fast pop-in
+    }
+    window-close {
+        duration-ms 140
+        curve "ease-out-quad"
+    }
+    window-movement {
+        spring damping-ratio=0.85 stiffness=900 epsilon=0.0001   // sliding, gentle bounce
+    }
+    window-resize {
+        spring damping-ratio=0.85 stiffness=900 epsilon=0.0001
+    }
+
+    // ── UI overlays ──
+    config-notification-open-close {
+        spring damping-ratio=0.6 stiffness=1000 epsilon=0.001
+    }
+    exit-confirmation-open-close {
+        spring damping-ratio=0.6 stiffness=600 epsilon=0.01
+    }
+    screenshot-ui-open {
+        duration-ms 200
+        curve "ease-out-quad"
+    }
+    overview-open-close {
+        spring damping-ratio=0.7 stiffness=800 epsilon=0.0001   // zooms with life
+    }
+    recent-windows-close {
+        spring damping-ratio=0.85 stiffness=800 epsilon=0.001
+    }
 }
 
 // ── Window rules ────────────────────────────────────────────

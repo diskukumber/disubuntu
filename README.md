@@ -684,9 +684,11 @@ comment. Wiki: <https://niri-wm.github.io/niri/>.
 | 37-58 | `input` | keyboard + touchpad settings |
 | 60-87 | `layout` | gaps, background, focus ring, shadows |
 | 90-95 | startup | spawns quickshell (the bar) + wallpaper restore |
-| 97-108 | misc | CSD handling, screenshots |
-| 111-152 | window/layer rules | corner radius, opacity, quickshell/pandora behavior |
-| 155-320 | `binds` | all keybindings |
+| 97-103 | misc | CSD handling, screenshots |
+| 105-152 | `animations` | springs + easings — the "alive" feel (below) |
+| 155-180 | window rules | corner radius, opacity, quickshell/pandora behavior |
+| 185-192 | layer rules | backdrop placement for quickshell + pandora |
+| 199-364 | `binds` | all keybindings |
 
 ### 🌍 `environment` — what apps see
 
@@ -750,6 +752,38 @@ The only autostart. Everything else is keybound.
 prefer-no-csd    // ask apps to drop their own titlebars (cleaner tiling)
 screenshot-path  // Print-key screenshots land in ~/Pictures/Screenshots/
 ```
+
+### 🎬 Animations — the "alive" feel
+
+Two animation types, tuned for a **living desktop**:
+
+- **Springs** (physical model): used for movement — they react to touchpad
+  gesture velocity and can *bounce* at the end. `damping-ratio < 1.0` =
+  underdamped (oscillates a little = life); `1.0` = critically damped (no
+  bounce). Lower stiffness = slower.
+- **Easing** (timed curve): used for open/close — fixed `duration-ms` +
+  `curve` (`ease-out-*`, `linear`, or a custom `"cubic-bezier" a b c d`).
+
+| Animation | Type | Tuning note |
+|---|---|---|
+| `workspace-switch` | spring `0.75/900` | slight bounce on switch |
+| `horizontal-view-movement` | spring `0.8/850` | camera scroll keeps up with gestures |
+| `window-open` | easing 180 ms, `cubic-bezier 0.05 0.7 0.1 1` | fast pop-in |
+| `window-close` | easing 140 ms, `ease-out-quad` | quick fade/shrink out |
+| `window-movement` | spring `0.85/900` | gentle slide + bounce when columns move |
+| `window-resize` | spring `0.85/900` | springs keep resize synchronized with view |
+| `config-notification-open-close` | spring `0.6/1000` | default underdamped wobble |
+| `exit-confirmation-open-close` | spring `0.6/600` | soft dialog pop |
+| `screenshot-ui-open` | easing 200 ms, `ease-out-quad` | fade-in of the capture UI |
+| `overview-open-close` | spring `0.7/800` | the Overview zoom has life |
+| `recent-windows-close` | spring `0.85/800` | fade-out of the switcher |
+
+> [!TIP]
+> Tweak one animation, save, and hit `niri msg action load-config-file` —
+> it applies instantly. Want everything slower? Add `slowdown 3.0`; want it
+> all off? `off` at the top of the block.
+> ⚠️ Keep `damping-ratio` ≤ 1.0 — overdamped springs have known numerical
+> glitches upstream.
 
 ### 🪟 Window rules
 
