@@ -1,8 +1,17 @@
 # 🐧 disubuntu · Ubuntu interim
 
-An Ubuntu interim-based setup, lean by design, refreshed on the interim release cadence.
+An **Ubuntu interim-based setup, lean by design** — a pure-Wayland desktop that
+runs on **~2 processes** and gets refreshed on the **6-month interim release
+cadence**.
 
-> [!NOTE]
+| Summary | |
+|---|---|
+| 🖥️ **OS** | Ubuntu interim (non-LTS, 6-month cadence) — Server *minimized* base |
+| 🪟 **Compositor** | [niri](https://niri-wm.github.io/niri/) (scrollable tiling, pure Wayland) |
+| 🧱 **Shell** | hand-written [quickshell](https://quickshell.org/) bar (~990 lines) |
+| 🎨 **GPU** | Intel UHD (iGPU, panel) + NVIDIA RTX 2060 (dGPU, renders) |
+
+> [!IMPORTANT]
 > 🚧 **Still under development** — this documentation is updated as the setup develops.
 
 ---
@@ -20,18 +29,20 @@ An Ubuntu interim-based setup, lean by design, refreshed on the interim release 
 | [🧱 The Quickshell Bar](#-the-quickshell-bar) | the hand-written bar: files, IPC, patterns, launcher |
 | [⌨️ Key Bindings](#-key-bindings) | the full cheat sheet |
 | [🎮 NVIDIA](#-nvidia) | driver, modeset, VRAM fix, groups, diagnostics |
-| [🚧 Work In Progress](#-work-in-progress) | done & open tasks, incl. the fixed-release (6-month) plan |
+| [🚧 Work In Progress](#-work-in-progress) | what's done, what's open, the 6-month release plan |
 | [📦 Packages & Details](#-packages--details) | the one-glance component table |
 | [🛠️ Troubleshooting & Known Issues](#-troubleshooting--known-issues) | symptom→fix table, logs, recovery recipes |
 | [🧹 Maintenance & Service Inventory](#-maintenance--service-inventory) | cleanup, services, dotfiles, routine care |
 | [📜 Provisioning & Baseline](#-provisioning--baseline) | fresh-install baseline, install/reset commands |
+| [❓ FAQ](#-faq) | quick answers: why interim, why hand-written bar, how to update/reset |
 | [ℹ️ Quick facts](#-quick-facts) | TL;DR summary |
 
 ---
 
 ## 📸 Screenshots
 
-Screenshots land in `~/Pictures/Screenshots/` and are added here as you go:
+Screenshots are **built into niri** — no extra tool needed. They land in
+`~/Pictures/Screenshots/` and are added here as you go:
 
 | Keys | What it captures |
 |---|---|
@@ -43,12 +54,16 @@ Screenshots land in `~/Pictures/Screenshots/` and are added here as you go:
 docs/system/screenshots/<name>.png
 ```
 
+> [!NOTE]
+> **Screenshot target** is set by `screenshot-path` in the niri config
+> (`~/.config/niri/config.kdl`, [misc section](#-niri-configuration)).
+
 ---
 
 ## 📥 Installation
 
 <details>
-<summary><h3>📥 INSTALLATION — from zero, in order</h3></summary>
+<summary><strong>📥 INSTALLATION — from zero, in order</strong></summary>
 
 > [!TIP]
 > The whole path is reproducible — every step is a command in this document.
@@ -376,21 +391,29 @@ and lightest, but the RTX 2060 gives much better performance for games and GPU
 workloads. The NVIDIA driver has a known VRAM quirk affecting compositors — see
 the [🎮 NVIDIA](#-nvidia) section for the fix that's already applied.
 
+> [!TIP]
+> **This is what "PRIME render offload" means in practice:** niri does its
+> rendering on the dGPU (fast), then hands finished frames to the iGPU, which
+> owns the panel. You get dGPU performance with iGPU battery behavior at idle.
+
 ### 🛠️ Hardware commands
 
-```bash
-lspci | grep -iE "vga|3d"          # list GPUs
-nvidia-smi                         # NVIDIA GPU status, VRAM, processes
-ls /dev/dri/                       # render devices (card0=Intel, card1=NVIDIA)
-cat /sys/class/drm/card1/device/... # raw GPU info if needed
-```
+| Command | What it shows |
+|---|---|
+| `lspci \| grep -iE "vga\|3d"` | both GPUs on the PCI bus |
+| `nvidia-smi` | NVIDIA GPU status, VRAM, processes |
+| `ls /dev/dri/` | render devices (`card0`=Intel, `card1`=NVIDIA) |
+| `cat /sys/class/drm/card1/device/…` | raw GPU info if needed |
 
 ---
 
 ## 🧩 Software stack & package inventory
 
 What runs, what each piece does, and every installed package by category.
-(Full `dpkg` list: **961 packages**; manually installed: **70** — snapshot 2026-08-04, after the step-3/5f purge.)
+
+> [!NOTE]
+> 📊 **Snapshot 2026-08-04:** **961 packages** installed, **70 manually
+> installed**, **30 enabled services** — measured *after* the steps-3/5f purge.
 
 ### 🗺️ The whole setup, one diagram
 
@@ -419,7 +442,7 @@ What runs, what each piece does, and every installed package by category.
 │  SYSTEM SERVICES                                              │
 │  greetd (login) → niri session · quickshell spawned by niri  │
 │  NOTE: greetd is currently DISABLED (started manually)        │
-│  (audio: removed 2026-08-04 — see Package inventory)          │
+│  (audio: purged 2026-08-04 — see Package inventory)           │
 ├───────────────────────────────────────────────────────────────┤
 │  GRAPHICS                                                     │
 │  nvidia-driver-595 (dGPU render) + Intel iGPU (scanout)       │
@@ -429,28 +452,40 @@ What runs, what each piece does, and every installed package by category.
 
 ### 👤 Who does what
 
+> [!TIP]
+> **Why these specific tools?** The table below is the whole "why" in one
+> place — every role is filled by either niri itself, our own QML, or a
+> standard Wayland utility. Nothing here pulls a desktop environment along.
+
 | Job | Handled by | Why this choice |
 |---|---|---|
-| Window management | **niri** | scrollable tiling, pure Wayland, tiny |
-| Notifications | **niri (built-in)** | popups rendered by the compositor — zero extra daemons |
-| Screenshots | **niri (built-in)** | `Print` / `Ctrl+Print` / `Alt+Print` — no grim/slurp needed |
-| Status bar | **quickshell + our `shell.qml`** | one process, one config, hand-written (~150 lines) |
-| App launcher | **quickshell (`Launcher.qml`)** | popup under the bar, Mod+R; fuzzel kept as fallback (Mod+D) |
-| Browser | **Helium** (`helium-bin`, .deb repo) | Chromium fork with Chrome-extension support; real .deb, no snap |
-| Terminal | **Ghostty** | native Wayland, GPU-accelerated |
-| Clipboard | **wl-clipboard** (`wl-copy`/`wl-paste`) | the Wayland standard |
-| Backlight keys | **brightnessctl** | works on Intel panels |
-| Audio | **none (removed)** | purged with the GNOME cleanup; restore via `sudo apt install pipewire pipewire-pulse wireplumber` — volume keys use `wpctl` |
-| Login | **greetd** | headless login manager, no GNOME bloat (installed; currently **disabled** — see [🚀 Session Startup](#-session-startup)) |
-| Desktop GPU | **nvidia-driver-595** | see [🎮 NVIDIA](#-nvidia) |
+| **Window management** | **niri** | scrollable tiling, pure Wayland, tiny |
+| **Notifications** | **niri (built-in)** | popups rendered by the compositor — zero extra daemons |
+| **Screenshots** | **niri (built-in)** | `Print` / `Ctrl+Print` / `Alt+Print` — no grim/slurp needed |
+| **Status bar** | **quickshell + our `shell.qml`** | one process, ~990 lines of hand-written QML |
+| **App launcher** | **quickshell (`Launcher.qml`)** | popup under the bar, Mod+R; fuzzel kept as fallback (Mod+D) |
+| **Browser** | **Helium** (`helium-bin`, .deb repo) | Chromium fork with Chrome-extension support; real .deb, no snap |
+| **Terminal** | **Ghostty** | native Wayland, GPU-accelerated |
+| **Clipboard** | **wl-clipboard** (`wl-copy`/`wl-paste`) | the Wayland standard |
+| **Backlight keys** | **brightnessctl** | works on Intel panels |
+| **Audio** | **none (removed)** | purged with the GNOME cleanup; restore via `sudo apt install pipewire pipewire-pulse wireplumber` — volume keys use `wpctl` |
+| **Login** | **greetd** | headless login manager, no GNOME bloat (installed; currently **disabled** — see [🚀 Session Startup](#-session-startup)) |
+| **Desktop GPU** | **nvidia-driver-595** | see [🎮 NVIDIA](#-nvidia) |
 
 ### 🚫 What is intentionally NOT here
 
-- No X11 apps, no full X server (rootless `xwayland-satellite` IS installed to run rare X11 apps)
-- No desktop environment, no display manager with GUI
-- No third-party shell config (waybar-ports, DMS-style shells, etc.)
-- No waybar, mako, swaybg, swaylock, grim, slurp (niri + our bar replace them)
-- No gammastep/nightlight, no polkit agent (keep it lean) — the tray lives in the top bar instead of a standalone daemon
+> [!TIP]
+> **The lean principle:** if a component can be built into niri or our bar, we
+> do not run a separate daemon for it. Every extra process is a point of
+> failure, memory, and maintenance.
+
+| Not installed | Why we skip it |
+|---|---|
+| Full X server / X11 apps | pure Wayland provides everything we need; rootless `xwayland-satellite` is installed to run rare X11 apps |
+| Desktop environment, GUI display manager | greetd text login + niri is the whole "DE" |
+| Third-party shell configs (waybar-ports, DMS shells, …) | the bar is ours — ~990 lines, fully readable |
+| `waybar`, `mako`, `swaybg`, `swaylock`, `grim`, `slurp` | niri + our bar replace them (notifications & screenshots are built into niri) |
+| `gammastep`/nightlight, polkit agent, standalone tray daemon | keep it lean — tray lives in the top bar
 
 ### 📦 Package inventory (the part that matters)
 
@@ -474,6 +509,7 @@ What runs, what each piece does, and every installed package by category.
 | `fonts-jetbrains-mono` | terminal monospace font |
 | `fonts-noto-core` | fallback glyph coverage for most scripts |
 | `fonts-noto-color-emoji` | emoji rendering in apps |
+| `fonts-materialdesignicons-webfont` | Material Design Icons glyphs — used by the bar's NET/MEM/CPU/layout/clock icons |
 
 **Graphics: NVIDIA (desktop driver)**
 
@@ -524,15 +560,15 @@ What runs, what each piece does, and every installed package by category.
 
 ### 🔢 Process count at idle
 
-```
-niri:                     1 process  (the compositor)
-quickshell:               1 process  (the whole UI)
-terminal:                 0 at idle
-pipewire + wireplumber:   2-3 processes (only after audio is restored)
-```
+| Process | Count | What it is |
+|---|---|---|
+| `niri` | **1** | the compositor |
+| `quickshell` | **1** | the whole UI |
+| terminal | **0** | nothing at idle |
+| `pipewire` + `wireplumber` | **2–3** | only after audio is restored |
 
-That's the whole desktop: **~2 processes** on top of systemd right now (audioless);
-~5 once pipewire + wireplumber are back.
+That's the whole desktop: **~2 processes** on top of systemd right now
+(audioless); **~5** once pipewire + wireplumber are back.
 
 ---
 
@@ -550,18 +586,16 @@ a headless login manager, and the compositor.
 
 ### 🥾 Boot order
 
-```
-1. Ubuntu boots; greetd takes over tty1
-2. greetd runs `agreety` — a text login prompt (username + password)
-3. After login, greetd runs:  niri-session
-4. niri-session:
-     - imports the login environment into the systemd user session
-     - refreshes the D-Bus activation environment
-     - starts niri.service (the compositor, with `--session`)
-5. niri reads ~/.config/niri/config.kdl and spawns quickshell
-6. quickshell renders the bars (top: workspaces · stats · tray; bottom: launcher · taskbar)
-7. Desktop is up:  ~2 processes total (audioless; ~5 with audio)
-```
+1. **Ubuntu boots** → greetd takes over **tty1**
+2. **greetd** runs `agreety` — a text login prompt (username + password)
+3. After login, greetd runs: **`niri-session`**
+4. `niri-session`:
+   - imports the login environment into the systemd user session
+   - refreshes the D-Bus activation environment
+   - starts `niri.service` (the compositor, with `--session`)
+5. **niri** reads `~/.config/niri/config.kdl` → spawns quickshell
+6. **quickshell** renders the bars (top: workspaces · stats · tray; bottom: launcher · taskbar)
+7. ✅ **Desktop is up** — ~2 processes total (audioless; ~5 with audio)
 
 ### 🗂️ Where the pieces live
 
@@ -576,10 +610,16 @@ a headless login manager, and the compositor.
 
 ### 🤔 Why greetd instead of GDM/SDDM?
 
-- **Server install** = no display manager. GDM would pull in GNOME dependencies.
-- `greetd` is one small daemon + a text greeter. It runs `niri-session` for you
-  and handles seat/permissions correctly.
-- Same UX as a TTY login, but tidier (auto session start).
+| Option | Why not / why yes |
+|---|---|
+| **GDM / SDDM** | would pull in GNOME/KDE dependencies — against the lean principle |
+| **greetd** ✅ | one small daemon + a text greeter (`agreety`); runs `niri-session` for you and handles seat/permissions correctly |
+| **Manual TTY login** | same UX, but greetd auto-starts the session — tidier |
+
+> [!NOTE]
+> This is a **headless login flow**: greetd has no GUI. You type your
+> username + password on a text screen, and the desktop starts underneath it —
+> no display-manager graphics at all.
 
 ### ⚙️ The greetd config (already set up)
 
@@ -620,14 +660,14 @@ no benefit.)
 
 ### 🛠️ Useful commands
 
-```bash
-systemctl status greetd              # login manager status
-journalctl -u greetd                 # login manager logs
-systemctl --user status niri         # compositor status
-journalctl --user -u niri -f         # compositor logs (live)
-niri msg -j workspaces               # verify IPC (bar data source)
-pgrep -a quickshell                  # shell should be running
-```
+| Command | What it does |
+|---|---|
+| `systemctl status greetd` | login manager status |
+| `journalctl -u greetd` | login manager logs |
+| `systemctl --user status niri` | compositor status |
+| `journalctl --user -u niri -f` | compositor logs (live) |
+| `niri msg -j workspaces` | verify IPC (bar data source) |
+| `pgrep -a quickshell` | shell should be running |
 
 ---
 
@@ -671,6 +711,13 @@ keyboard { xkb {} numlock }   // layout from systemd-localed; NumLock on
 touchpad { tap; natural-scroll }   // tap-to-click, macOS-style scrolling
 mouse   { }                   // defaults
 ```
+
+| Setting | Effect |
+|---|---|
+| `keyboard { xkb {} }` | layout follows **systemd-localed** — change it live with `localectl` (no reload needed) |
+| `numlock` | NumLock on at boot |
+| `touchpad { tap }` | tap-to-click |
+| `natural-scroll` | macOS-style scrolling |
 
 Change keyboard layout with: `localectl set-x11-keymap us` (or `de`, `fr`, …).
 
@@ -737,7 +784,7 @@ niri msg version                # compositor version
 
 ## 🧱 The Quickshell Bar
 
-The entire UI is a hand-written quickshell config (~900 lines). No third-party
+The entire UI is a hand-written quickshell config (~990 lines). No third-party
 shells, no plugins — just quickshell core + niri's IPC. The look is a port of
 the user's waybar config (`diskukumber/disnixos` · `.config/waybar`), including
 its Gruvbox palette and per-module colors.
@@ -892,11 +939,11 @@ that file with `Process { command: ["tail", "-n", "0", "-F", ...] }` and a
 
 ### 💡 Why this design
 
-- **One process** for the whole UI (~15 MB RSS).
-- **No third-party anything**: no shell configs, no plugins, no notification
-  daemons — the compositor does notifications and screenshots.
-- Everything here is plain QML + one documented command line (`niri msg`), so
-  you can read, modify, and trust every line.
+| Property | What it buys you |
+|---|---|
+| **One process** for the whole UI (~15 MB RSS) | minimal memory, no daemon coordination |
+| **No third-party anything** (no shell configs, plugins, notification daemons) | the compositor does notifications + screenshots itself |
+| **Plain QML + one documented command** (`niri msg`) | you can read, modify, and trust every line |
 
 ### 🔄 Reloading
 
@@ -911,8 +958,10 @@ pgrep -a quickshell
 
 ## ⌨️ Key Bindings
 
-`Mod` = **Super/Windows** key. Every bind lives in `binds { }` in
-`~/.config/niri/config.kdl`.
+> [!TIP]
+> **`Mod` = 👑 Super/Windows key.** Every single bind lives in `binds { }` in
+> `~/.config/niri/config.kdl` — this table reflects that file exactly.
+> Changed something? Just `niri msg action load-config-file`.
 
 ### 🚀 Apps
 
@@ -927,6 +976,11 @@ pgrep -a quickshell
 | `Mod+Shift+/` | hotkey help overlay |
 
 ### 🔊 Audio & brightness
+
+> [!WARNING]
+> **Audio is currently purged** from the machine (removed with the GNOME
+> cleanup on 2026-08-04). These binds work **after** you restore it:
+> `sudo apt install -y pipewire pipewire-pulse wireplumber`.
 
 | Keys | Action |
 |---|---|
@@ -1013,12 +1067,22 @@ Saved to `~/Pictures/Screenshots/` (see `screenshot-path` in the config).
 
 ### ➕ Adding/removing binds
 
-1. Edit `binds { }` in `~/.config/niri/config.kdl`
-2. Reload: `niri msg action load-config-file` (no restart needed)
+```bash
+# 1. Edit binds { } in ~/.config/niri/config.kdl
+# 2. Apply live (no restart, no reboot):
+niri msg action load-config-file
+```
 
-Bind syntax: `Mod+Key { action; }` — e.g. `Mod+P { spawn "ghostty"; }`.
-Actions are listed in the wiki (Configuration → Key Bindings) or in the hotkey
-overlay.
+**Bind syntax:** `Mod+Key { action; }` → example: `Mod+P { spawn "ghostty"; }`.
+
+| Resource | What it gives |
+|---|---|
+| [niri Wiki → Configuration](https://niri-wm.github.io/niri/Configuration.html) | every action, in full |
+| hotkey overlay `Mod+Shift+/` | on-screen list of your current binds |
+
+> [!TIP]
+> The overlay (`Mod+Shift+/`) is the fastest way to check what's bound —
+> it reads live from the config, not from this doc.
 
 ---
 
@@ -1026,11 +1090,10 @@ overlay.
 
 The situation when this machine was set up:
 
-- Ubuntu shipped with the **`595-server-open`** driver variant (headless server
-  stack: kernel modules + compute libs, but **no display GL stack**, no
-  `nvidia-smi`).
-- That variant is useless for a desktop. We install the proper **`nvidia-driver-595`**
-  (desktop variant) which replaces it.
+| Driver variant | What it is | Verdict |
+|---|---|---|
+| **`595-server-open`** (shipped with the image) | headless server stack: kernel modules + compute libs, **no display GL stack**, no `nvidia-smi` | ❌ useless for a desktop |
+| **`nvidia-driver-595`** (desktop variant) | full display GL stack + tools | ✅ what we install — replaces the above |
 
 ### 📦 What the desktop driver gives you
 
@@ -1109,72 +1172,95 @@ Verify with `groups` (takes effect after next login).
 
 ### 🔀 How the two GPUs cooperate
 
-- The laptop panel (eDP) is wired to the **Intel** iGPU — it always drives the panel.
-- niri renders with the **NVIDIA** dGPU via EGL/GBM.
-- This works without any X11 config: Wayland compositors handle multi-GPU natively.
+| Piece | Role |
+|---|---|
+| **Intel iGPU** | the laptop panel (eDP) is wired to it — it always drives the panel (scanout) |
+| **NVIDIA dGPU** | niri renders with it via EGL/GBM (compute + games offload here) |
+
+This works **without any X11 config** — Wayland compositors handle multi-GPU
+natively.
 
 ### 🛠️ Diagnostic commands
 
-```bash
-nvidia-smi                                   # status, VRAM, processes
-lsmod | grep nvidia                          # module state
-cat /sys/module/nvidia_drm/parameters/modeset # Y = modesetting on
-dmesg | grep -i nvidia                       # kernel messages
-journalctl -b | grep -iE "nvidia|egl"        # boot log mentions
-ls /dev/dri/                                 # card0 = Intel, card1 = NVIDIA
-```
+| Command | What it tells you |
+|---|---|
+| `nvidia-smi` | status, VRAM, processes |
+| `lsmod \| grep nvidia` | module state |
+| `cat /sys/module/nvidia_drm/parameters/modeset` | `Y` = modesetting on |
+| `dmesg \| grep -i nvidia` | kernel messages |
+| `journalctl -b \| grep -iE "nvidia\|egl"` | boot-log mentions |
+| `ls /dev/dri/` | `card0` = Intel, `card1` = NVIDIA |
 
 ### ⚠️ Known quirks
 
-- **Screencast flickering** on NVIDIA: fixed upstream in niri ≥ 25.08 — nothing to do.
-- **Suspend issues** on some dual-GPU laptops: if suspend misbehaves, check
-  `nvidia-smi` power state and kernel logs; a reboot usually clears it.
-- **VRAM heap**: the profile above must match the process name `niri` exactly.
+| Quirk | Status |
+|---|---|
+| Screencast flickering on NVIDIA | ✅ fixed upstream in niri ≥ 25.08 — nothing to do |
+| Suspend issues on some dual-GPU laptops | if suspend misbehaves: check `nvidia-smi` power state + kernel logs; a reboot usually clears it |
+| VRAM heap | the profile must match the process name `niri` **exactly** |
 
 ---
 
 ## 🚧 Work In Progress
+
+> [!NOTE]
+> **What "done" means here:** the desktop is fully usable today — compositor,
+> bar, launcher, NVIDIA, screenshots, notifications. The open items below are
+> refinements and decisions, not blockers.
+
+### ✅ Done
 
 - [x] Minimal quickshell bar (workspaces, focused window title, clock).
 - [x] App launcher popup written in quickshell (Mod+R); fuzzel kept as fallback (Mod+D).
 - [x] Bar revamped as a waybar port: top bar = workspaces + stats cluster (NET/MEM/CPU/layout/date/clock) + system tray; bottom bar = app launcher + window taskbar; full-width bars with the off-edge side sweeping in a single full-height curve.
 - [x] NVIDIA desktop driver (replaces server variant) + VRAM heap fix.
 - [x] niri + quickshell stack runs (greetd path configured).
+
+### 🚧 Open
+
 - [ ] **greetd currently disabled** — decide: `sudo systemctl enable --now greetd` (auto-login) or keep manual `niri-session` start.
 - [ ] Restore audio (pipewire/wireplumber was purged with the GNOME cleanup) + volume keys via `wpctl`.
 - [ ] Wallpaper layer (optional quickshell backdrop; solid `#111111` for now).
 - [ ] Bluetooth: not installed yet (bluez optional).
-- [ ] **Release cadence: interim** — every 6 months `sudo do-release-upgrade` to the next Ubuntu interim release (Fedora-style cadence, apt-based, no dnf/rpm; ~9 months of support per release).
 - [ ] Screen locker (none yet — `Mod+Shift+E` quits back to greetd).
+
+### 📆 Release cadence
+
+> [!TIP]
+> **Interim releases, every 6 months:** `sudo do-release-upgrade` to the next
+> Ubuntu interim release — Fedora-style cadence, apt-based, no dnf/rpm.
+> Each release gets ~9 months of support. The switch is `Prompt=normal` in
+> `/etc/update-manager/release-upgrades` (already set, see step 4 of
+> [📥 Installation](#-installation)).
 
 ---
 
 ## 📦 Packages & Details
 
 <details>
-<summary><h3>📦 Packages & Details</h3></summary>
+<summary><strong>📦 Packages & Details — every component, at a glance</strong></summary>
 
 |  |  |
 | :-- | --- |
-🖥️ Distribution | [Ubuntu](https://ubuntu.com/) interim (6-month release cadence) — Server minimal
-📦 Package manager | [nala](https://gitlab.com/volian/nala) — pretty apt frontend (mirrors in `/etc/nala/sources.list`, aliases in `~/.bash_aliases`)
-🪟 Compositor | [niri](https://niri-wm.github.io/niri/) (scrollable tiling, pure Wayland)
-💻 Terminal Emulator | [Ghostty](https://ghostty.org/) (native Wayland, GPU-accelerated)
-🚀 Applications launcher | [quickshell](https://quickshell.org/) popup (Mod+R) • [fuzzel](https://codeberg.org/dnkl/fuzzel) (Mod+D)
-🧱 Bar / Shell | [quickshell](https://quickshell.org/) — hand-written `shell.qml` / `Bar.qml` / `Taskbar.qml` (~900 lines, waybar-style) |
-🌍 Browser | [Helium](https://github.com/imputnet/helium-linux) (Chromium fork, real .deb)
-🔑 Login Manager | [greetd](https://sr.ht/~kennylevinsen/greetd/) (text greeter: agreety — installed; **currently disabled**, enable with `sudo systemctl enable --now greetd`)
-🔔 Compositor notifications | niri (built-in)
-📸 Screenshots | niri (built-in: `Print` family)
-📋 Clipboard Manager | [wl-clipboard](https://github.com/bugaevc/wl-clipboard) (`wl-copy` / `wl-paste`)
-🖼️ Wallpaper | [awww](https://codeberg.org/hurlbutt/awww) (images/GIFs, built from source) • [pandora](https://github.com/PandorasFox/pandora) (parallax scroll) — swap with `wp` / `wp --parallax`
-🔐 Authentication agent | polkitd
-🌐 Network management | [NetworkManager](https://networkmanager.dev/) + `wpa_supplicant`
-📡 Bluetooth | not installed — optional; add later with `sudo apt install bluez bluez-utils` (not part of the lean base)
-🔊 Audio control | pipewire + wireplumber (purged 2026-08-04, needs restore — see [🚧 Work In Progress](#-work-in-progress))
-🔋 Power management | nvidia-powerd (nvidia-suspend/resume/hibernate units)
-🎮 Graphics | Intel UHD (iGPU, drives panel) + NVIDIA RTX 2060 Mobile (dGPU, renders via nvidia-driver-595)
-🖥️ Display stack | pure Wayland; `xwayland-satellite` for rare X11 apps
+| 🖥️ Distribution | [Ubuntu](https://ubuntu.com/) interim (6-month release cadence) — Server minimal |
+| 📦 Package manager | [nala](https://gitlab.com/volian/nala) — pretty apt frontend (mirrors in `/etc/nala/sources.list`, aliases in `~/.bash_aliases`) |
+| 🪟 Compositor | [niri](https://niri-wm.github.io/niri/) (scrollable tiling, pure Wayland) |
+| 💻 Terminal Emulator | [Ghostty](https://ghostty.org/) (native Wayland, GPU-accelerated) |
+| 🚀 Applications launcher | [quickshell](https://quickshell.org/) popup (Mod+R) • [fuzzel](https://codeberg.org/dnkl/fuzzel) (Mod+D) |
+| 🧱 Bar / Shell | [quickshell](https://quickshell.org/) — hand-written `shell.qml` / `Bar.qml` / `Taskbar.qml` (~990 lines, waybar-style) |
+| 🌍 Browser | [Helium](https://github.com/imputnet/helium-linux) (Chromium fork, real .deb) |
+| 🔑 Login Manager | [greetd](https://sr.ht/~kennylevinsen/greetd/) (text greeter: agreety — installed; **currently disabled**, enable with `sudo systemctl enable --now greetd`) |
+| 🔔 Compositor notifications | niri (built-in) |
+| 📸 Screenshots | niri (built-in: `Print` family) |
+| 📋 Clipboard Manager | [wl-clipboard](https://github.com/bugaevc/wl-clipboard) (`wl-copy` / `wl-paste`) |
+| 🖼️ Wallpaper | [awww](https://codeberg.org/hurlbutt/awww) (images/GIFs, built from source) • [pandora](https://github.com/PandorasFox/pandora) (parallax scroll) — swap with `wp` / `wp --parallax` |
+| 🔐 Authentication agent | polkitd |
+| 🌐 Network management | [NetworkManager](https://networkmanager.dev/) + `wpa_supplicant` |
+| 📡 Bluetooth | not installed — optional; add later with `sudo apt install bluez bluez-utils` (not part of the lean base) |
+| 🔊 Audio control | pipewire + wireplumber (purged 2026-08-04, needs restore — see [🚧 Work In Progress](#-work-in-progress)) |
+| 🔋 Power management | nvidia-powerd (nvidia-suspend/resume/hibernate units) |
+| 🎮 Graphics | Intel UHD (iGPU, drives panel) + NVIDIA RTX 2060 Mobile (dGPU, renders via nvidia-driver-595) |
+| 🖥️ Display stack | pure Wayland; `xwayland-satellite` for rare X11 apps |
 </details>
 
 > [!TIP]
@@ -1191,11 +1277,11 @@ ls /dev/dri/                                 # card0 = Intel, card1 = NVIDIA
 
 ### 🥇 Golden rules
 
-1. **Everything logs somewhere.** Check the logs before touching anything.
-2. **The bar and compositor reload instantly** — editing a config is usually
-   enough; only kernel/driver changes need a reboot.
-3. **TTY rescue**: `Ctrl+Alt+F2` → log in → you have a full terminal even if
-   the desktop is dead.
+| # | Rule | Why |
+|---|---|---|
+| 1 | **Everything logs somewhere** — check logs before touching anything | you avoid blind changes; the log usually names the exact cause |
+| 2 | **The bar and compositor reload instantly** — editing a config is usually enough | only kernel/driver changes need a reboot |
+| 3 | **TTY rescue**: `Ctrl+Alt+F2` → log in → full terminal even if the desktop is dead | the escape hatch for every session-level problem |
 
 ### 🩺 Symptom → fix table
 
@@ -1218,17 +1304,21 @@ ls /dev/dri/                                 # card0 = Intel, card1 = NVIDIA
 
 ### ⚠️ Known issues
 
-- 🚪 **greetd is currently disabled** — the desktop must be started manually
-  (`niri-session -l` from a TTY/shell) or greetd re-enabled
-  (`sudo systemctl enable --now greetd`).
-- 💤 **Suspend/resume** on this dual-GPU laptop can glitch — a reboot usually clears it.
-- 🐧 Some **X11 apps** don't work under the pure Wayland session (**XWayland edge cases**).
-- 🎮 **NVIDIA VRAM heap quirk** (~1 GiB hoarded by compositors): fixed by the
-  application-profile JSON in [🎮 NVIDIA](#-nvidia); the profile must match `niri`.
-- 🔇 **Audio purged** 2026-08-04 with the GNOME cleanup — volume keys need
-  `pipewire pipewire-pulse wireplumber` reinstalled and `wpctl` binds.
+| Issue | Status / workaround |
+|---|---|
+| 🚪 **greetd is currently disabled** | desktop must be started manually (`niri-session -l` from a TTY/shell) or greetd re-enabled (`sudo systemctl enable --now greetd`) |
+| 💤 **Suspend/resume** can glitch on this dual-GPU laptop | a reboot usually clears it |
+| 🐧 Some **X11 apps** misbehave under pure Wayland | XWayland edge cases; run them via `xwayland-satellite` |
+| 🎮 **NVIDIA VRAM heap quirk** (~1 GiB hoarded by compositors) | fixed by the application-profile JSON in [🎮 NVIDIA](#-nvidia); the profile must match `niri` |
+| 🔇 **Audio purged** (2026-08-04, GNOME cleanup) | reinstall `pipewire pipewire-pulse wireplumber`; volume keys use `wpctl` |
 
 ### 🎮 NVIDIA-specific
+
+| Symptom | Fix |
+|---|---|
+| **Black screen on start** | modeset missing → add `nvidia-drm.modeset=1` ([🎮 NVIDIA](#-nvidia) Step 1), `sudo update-grub`, reboot |
+| **High VRAM** | re-apply the profile JSON ([🎮 NVIDIA](#-nvidia) Step 2), restart niri |
+| **nvidia-smi missing** | driver package not installed — `sudo apt install nvidia-driver-595` |
 
 ```bash
 nvidia-smi                                    # driver alive? VRAM usage?
@@ -1236,11 +1326,6 @@ lsmod | grep nvidia                           # modules loaded?
 cat /sys/module/nvidia_drm/parameters/modeset # Y = modeset on (reboot needed to change)
 cat /proc/cmdline                             # nvidia-drm.modeset=1 present?
 ```
-
-- **Black screen on start**: modeset missing → add `nvidia-drm.modeset=1`
-  ([🎮 NVIDIA](#-nvidia) Step 1), `sudo update-grub`, reboot.
-- **High VRAM**: re-apply the profile JSON ([🎮 NVIDIA](#-nvidia) Step 2), restart niri.
-- **nvidia-smi missing**: driver package not installed — `sudo apt install nvidia-driver-595`.
 
 ### 🔬 Checking the whole stack at once
 
@@ -1265,6 +1350,13 @@ nvidia-smi | head -10
 | kernel (drivers, GPUs) | `dmesg | grep -iE "nvidia|drm|i915"` |
 
 ### 🧯 Recovery recipes
+
+| Situation | The move |
+|---|---|
+| **Desktop frozen** | `Ctrl+Alt+F2` → log in on tty2 → kill the session (below) |
+| **Session won't quit** | `systemctl --user start niri-shutdown.target` (clean) or `pkill -u $USER niri` (hard) |
+| **Bar broken/disappeared** | `pkill -f "quickshell"` then re-login (niri won't restart it itself) |
+| **Bar errors invisible** | run `quickshell` in a terminal — errors print right there |
 
 **Kill the session from a TTY:**
 
@@ -1291,8 +1383,13 @@ quickshell   # from a TTY inside the session or a nested terminal
 ### ❓ Still stuck?
 
 Check the niri wiki FAQ (<https://niri-wm.github.io/niri/FAQ.html>) and the
-quickshell docs (<https://quickshell.org/>), then search the error line from
-the logs — it's usually a known issue.
+quickshell docs (<https://quickshell.org/>), then **search the exact error
+line** from the logs — it's usually a known issue.
+
+> [!TIP]
+> **How to report a bug worth solving:** paste the full `journalctl --user -u
+> niri -b -e` tail (or the quickshell error) — that one line usually contains
+> the answer already.
 
 ---
 
@@ -1338,22 +1435,23 @@ du -sh ~/.cache
 
 | Item | What | Status |
 |---|---|---|
-| `nvidia-firmware-595-server` | auto-installed server firmware, unused with the desktop driver | **removed** (103 MB freed) |
-| `lxd-installer` | LXD snap wrapper; no containers are used | **removed** |
-| `open-iscsi`, `multipath-tools`, `modemmanager` | iSCSI/SAN/mobile-broadband leftovers from the server image | **removed** |
-| `cloud-init` + `cloud-init-base` | cloud provisioning; unused on bare metal (5 services) | **purged** |
-| `snapd` | running with **0 snaps installed** | **purged** (7 services) |
-| `kdump-tools`, `apport` (+core-dump-handler, +symptoms) | crash dump/reporting, no value here | **purged** (was: disabled) |
-| `pollinate`, `avahi-daemon`, `udisks2`, `networkd-dispatcher`, `unminimize` | Canonical/server leftovers | **purged** |
-| `nautilus`, `gvfs*`, `xdg-desktop-portal-gnome`, `ipp-usb` | GNOME file-manager/portal chain (niri Recommends) | **purged** |
-| `evolution-data-server` (+libs), `bluez-obexd`, `localsearch` | GNOME calendar/indexer chain (via gnome-keyring) — 5 user services stopped | **purged** |
-| apt cache | 834 MB of `.deb` archives + lists | **cleaned** (56 KB now) |
-| npm cache | 86 MB | **cleared** |
-| autoremove sweep | packagekit, usb-modeswitch, snapd-glib deps, appstream, etc. | **purged** (46 pkgs) |
-| journal | 25 MB | already small, vacuumed |
+| `nvidia-firmware-595-server` | auto-installed server firmware, unused with the desktop driver | ✅ **removed** (103 MB freed) |
+| `lxd-installer` | LXD snap wrapper; no containers are used | ✅ **removed** |
+| `open-iscsi`, `multipath-tools`, `modemmanager` | iSCSI/SAN/mobile-broadband leftovers from the server image | ✅ **removed** |
+| `cloud-init` + `cloud-init-base` | cloud provisioning; unused on bare metal (5 services) | ✅ **purged** |
+| `snapd` | running with **0 snaps installed** | ✅ **purged** (7 services) |
+| `kdump-tools`, `apport` (+core-dump-handler, +symptoms) | crash dump/reporting, no value here | ✅ **purged** (was: disabled) |
+| `pollinate`, `avahi-daemon`, `udisks2`, `networkd-dispatcher`, `unminimize` | Canonical/server leftovers | ✅ **purged** |
+| `nautilus`, `gvfs*`, `xdg-desktop-portal-gnome`, `ipp-usb` | GNOME file-manager/portal chain (niri Recommends) | ✅ **purged** |
+| `evolution-data-server` (+libs), `bluez-obexd`, `localsearch` | GNOME calendar/indexer chain (via gnome-keyring) — 5 user services stopped | ✅ **purged** |
+| apt cache | 834 MB of `.deb` archives + lists | ✅ **cleaned** (56 KB now) |
+| npm cache | 86 MB | ✅ **cleared** |
+| autoremove sweep | packagekit, usb-modeswitch, snapd-glib deps, appstream, etc. | ✅ **purged** (46 pkgs) |
+| journal | 25 MB | ✅ already small, vacuumed |
 
-Results: **~200 MB + 46 packages freed**; enabled services went 60 → 43 → **30**
-today (verified 2026-08-04, after the full steps-3/5f purge).
+> [!NOTE]
+> **Net effect of the cleanup:** ~200 MB + 46 packages freed; enabled services
+> went **60 → 43 → 30** (verified 2026-08-04, after the full steps-3/5f purge).
 
 ### ⚙️ Service inventory (enabled, system — 30 currently)
 
@@ -1410,12 +1508,18 @@ alias nf='nala fetch'       # pick fastest mirrors
 ### 🔄 Routine maintenance
 
 ```bash
-nala update && nala upgrade   # weekly
-nala autoremove               # monthly (or: sudo apt autoremove --purge)
-journalctl --vacuum-size=200M # if journal grows
-nvidia-smi                    # verify GPU health
+nala update && nala upgrade   # weekly — security + updates
+nala autoremove               # monthly — drop orphaned deps
+journalctl --vacuum-size=200M # if the journal grows past 200 MB
+nvidia-smi                    # verify GPU health (VRAM, driver)
 systemctl --user status niri  # compositor health
 ```
+
+> [!NOTE]
+> **What each command watches over:** `nala` keeps the ~961 packages patched,
+> `journalctl` bounds disk, `nvidia-smi` catches the VRAM quirk, and `niri`
+> status confirms the compositor survived the upgrade. None of these take more
+> than a minute.
 
 ### ↩️ Rollback notes
 
@@ -1520,11 +1624,12 @@ sudo apt-get update && sudo apt-get autoremove --purge -y
 
 ### 🚫 What the commands do NOT touch (by design)
 
-- `linux-generic` kernel, GRUB/EFI, Secure Boot (installer-level)
-- `~/.ssh/authorized_keys` and `.bashrc` PATH line
-- Home data (`~/docs`, `~/Pictures`, etc.)
-- The reinstall path does NOT restore `/etc/greetd/config.toml` automatically —
-  copy it back (see [🚀 Session Startup](#-session-startup)).
+| Untouched | Why |
+|---|---|
+| `linux-generic` kernel, GRUB/EFI, Secure Boot | installer-level — never fiddled with |
+| `~/.ssh/authorized_keys` + `.bashrc` PATH line | personal access + your env stays intact |
+| Home data (`~/docs`, `~/Pictures`, …) | reset only touches system state |
+| `/etc/greetd/config.toml` | **not** restored by the reinstall path — copy it back manually (see [🚀 Session Startup](#-session-startup)) |
 
 ### ✅ Post-reboot verification
 
@@ -1547,23 +1652,62 @@ systemctl list-unit-files --type=service --state=enabled --no-pager | \
 
 ### ✅ After a reinstall, checklist
 
-1. `systemctl status greetd` — login manager up
-2. `systemctl --user status niri` — compositor running
-3. `pgrep -a quickshell` — bar spawned
-4. `nvidia-smi` — dGPU driver loaded
-5. `nmcli device wifi list` — WiFi via NetworkManager
+| # | Check | Expect |
+|---|---|---|
+| 1 | `systemctl status greetd` | login manager **up** |
+| 2 | `systemctl --user status niri` | compositor **running** |
+| 3 | `pgrep -a quickshell` | bar **spawned** |
+| 4 | `nvidia-smi` | dGPU driver **loaded** |
+| 5 | `nmcli device wifi list` | WiFi via NetworkManager |
+
+---
+
+## ❓ FAQ
+
+**"Why not just install Ubuntu Desktop?"** Because it ships a GNOME desktop,
+snaps, and hundreds of packages we'd never use. This setup starts from the
+*minimized server* base and adds only what we need — **~961 packages** vs. a
+stock desktop's several thousand, and **~2 processes at idle** instead of a
+dozen.
+
+**"Why interim instead of LTS?"** LTS releases stay on old software for 5+
+years. The interim cadence (every 6 months) brings current kernels, drivers,
+and Wayland compositors — especially relevant for niri and the NVIDIA driver,
+which improve fast. `Prompt=normal` in `/etc/update-manager/release-upgrades`
+is the single switch that makes this work.
+
+**"Why hand-write a quickshell bar instead of using waybar?"** Waybar on
+Wayland needs a separate IPC daemon, a window layer, and config duplication.
+Quickshell gives us one process rendering both bars, a launcher, and the tray —
+all in one readable QML file (~990 lines) with niri's IPC built in.
+
+**"Is this stable enough for daily use?"** Yes — niri is the most
+feature-complete scrollable-tiling compositor and reloads configs live. The
+main caveats are the known NVIDIA quirks (documented in [🎮 NVIDIA](#-nvidia))
+and that the bar is a WIP (see [🚧 Work In Progress](#-work-in-progress)).
+
+**"How do I get audio back?"** `sudo apt install -y pipewire pipewire-pulse
+wireplumber` — it was purged with the GNOME cleanup. Volume keys use `wpctl`.
+
+**"How do I update everything?"** `nala update && nala upgrade` (weekly,
+see [🧹 Maintenance](#-maintenance--service-inventory)). For the distro
+itself: `sudo do-release-upgrade` every 6 months.
+
+**"How do I reset back to a clean server?"** The [📜 Provisioning & Baseline](#-provisioning--baseline)
+section has the exact reset commands.
 
 ---
 
 ## ℹ️ Quick facts
 
-- 🖥️ **OS**: Ubuntu interim (6-month release cadence), fresh minimal server install
-- 📆 **Release plan**: interim cadence — bump to the next Ubuntu interim release every 6 months
-  via `sudo do-release-upgrade` (see [🚧 Work In Progress](#-work-in-progress))
-- 🪟 **Compositor**: niri (scrollable tiling Wayland compositor)
-- 🧱 **Shell**: a small hand-written quickshell UI (top bar: workspaces, net/mem/cpu stats, keyboard, date/clock, tray; bottom bar: app launcher + window taskbar)
-- 💻 **Terminal**: Ghostty
-- 🚀 **Launcher**: quickshell popup (Mod+R); fuzzel kept as fallback (Mod+D)
-- 🌍 **Browser**: Helium (Chromium fork, real .deb — no snap)
-- 🖥️ **Display stack**: pure Wayland, no X11 apps, no desktop environment
-- 🎯 **Policy**: only necessary packages, no third-party configs or shells
+| | |
+|---|---|
+| 🖥️ **OS** | Ubuntu interim (non-LTS), 6-month cadence — fresh *minimized server* base |
+| 📆 **Release plan** | `sudo do-release-upgrade` to the next interim release every 6 months (see [🚧 Work In Progress](#-work-in-progress)) |
+| 🪟 **Compositor** | niri — scrollable-tiling, pure Wayland |
+| 🧱 **Shell** | hand-written quickshell (~990 lines): top bar = workspaces · net/mem/cpu · kbd · date/clock · tray; bottom bar = launcher · window taskbar |
+| 💻 **Terminal** | Ghostty (native Wayland) |
+| 🚀 **Launcher** | quickshell popup (Mod+R) + fuzzel fallback (Mod+D) |
+| 🌍 **Browser** | Helium — Chromium fork, real `.deb`, no snap |
+| 🖥️ **Display stack** | pure Wayland, no X11 apps, no desktop environment |
+| 🎯 **Policy** | only necessary packages; no third-party configs or shells |
