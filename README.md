@@ -113,6 +113,7 @@ The **"Minimized"** profile installs the `ubuntu-server-minimal` metapackage
 | `udisks2` | storage D-Bus daemon | no file manager needs it |
 | `networkd-dispatcher` | systemd-networkd event handler | we use NetworkManager, not networkd |
 | `lxd-installer` | LXD container wrapper | no containers |
+| `unminimize` | un-restores "minimized" images (applies docs/manpages back) | we want to *stay* minimal |
 
 **Optional (judgment call, safe to keep):**
 
@@ -148,7 +149,7 @@ sudo apt-get purge -y open-iscsi multipath-tools modemmanager
 
 # 3d. Purge crash-reporting + Canonical extras (not just disable — uninstall)
 sudo apt-get purge -y apport apport-core-dump-handler apport-symptoms kdump-tools \
-  pollinate avahi-daemon udisks2 networkd-dispatcher
+  pollinate avahi-daemon udisks2 networkd-dispatcher unminimize
 
 # 3e. Clean apt + journal caches
 sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/* && sudo apt-get update
@@ -1422,6 +1423,10 @@ sudo / sudo-rs    systemd        systemd-resolved systemd-sysv
 ubuntu-drivers-common           ubuntu-release-upgrader-core
 udev              unminimize     xfsprogs
 ```
+
+Of these, **step 3 of [📥 Installation](#-installation) purges** the Canonical
+extras: `cloud-init`, `snapd`, `pollinate`, `open-iscsi`, `multipath-tools`,
+`unminimize` — leaving only the essentials.
 
 Plus the installer's base layer: `linux-generic` kernel, `grub-efi-amd64` +
 `shim-signed` (Secure Boot), `locales`, `nano`, `unattended-upgrades`,
