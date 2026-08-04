@@ -48,7 +48,7 @@ docs/system/screenshots/<name>.png
 ## 📥 Installation
 
 <details>
-<summary><h3>📥 INSTALLATION — Ubuntu non-LTS fixed release</h3></summary>
+<summary><h3>📥 INSTALLATION — Ubuntu interim</h3></summary>
 
 > [!TIP]
 > Start from a fresh [Ubuntu Server](https://ubuntu.com/server) **minimal**
@@ -125,7 +125,7 @@ sudo apt install -y \
 
 ### ✅ Already present from the Ubuntu base install
 
-- **niri** 26.04 + systemd units (`niri.service`) + session file
+- **niri** + systemd units (`niri.service`) + session file
 - **greetd** (login manager, configured but currently **disabled** — see [🚀 Session Startup](#-session-startup))
 - **fuzzel** and **alacritty** (fallback tools)
 - **xdg-desktop-portal**, **polkit**, **accountsservice**
@@ -280,9 +280,9 @@ What runs, what each piece does, and every installed package by category.
 
 | Package | Version | Purpose |
 |---|---|---|
-| `niri` | 26.04 | the Wayland compositor |
-| `quickshell` | 0.3.0 | QML runtime that renders our bar (from the `danklinux` PPA) |
-| `ghostty` | 1.3.x | terminal emulator |
+| `niri` | — | the Wayland compositor |
+| `quickshell` | — | QML runtime that renders our bar (from the `danklinux` PPA) |
+| `ghostty` | — | terminal emulator |
 | `fuzzel` | (universe) | application launcher |
 | `wl-clipboard` | (universe) | `wl-copy` / `wl-paste` clipboard tools |
 | `brightnessctl` | (universe) | screen brightness control |
@@ -960,7 +960,7 @@ ls /dev/dri/                                 # card0 = Intel, card1 = NVIDIA
 - [ ] Restore audio (pipewire/wireplumber was purged with the GNOME cleanup) + volume keys via `wpctl`.
 - [ ] Wallpaper layer (optional quickshell backdrop; solid `#111111` for now).
 - [ ] Bluetooth: not installed yet (bluez optional).
-- [ ] **Release cadence: non-LTS fixed release** — each 6 months `sudo do-release-upgrade` to the next non-LTS release, repeating every 6 months (Fedora-style cadence, apt-based, no dnf/rpm: ~9 months of support per release).
+- [ ] **Release cadence: interim** — every 6 months `sudo do-release-upgrade` to the next Ubuntu interim release (Fedora-style cadence, apt-based, no dnf/rpm; ~9 months of support per release).
 - [ ] Screen locker (none yet — `Mod+Shift+E` quits back to greetd).
 
 ---
@@ -972,7 +972,7 @@ ls /dev/dri/                                 # card0 = Intel, card1 = NVIDIA
 
 |  |  |
 | :-- | --- |
-🖥️ Distribution | [Ubuntu](https://ubuntu.com/) non-LTS fixed release (6-month cadence) — Server minimal
+🖥️ Distribution | [Ubuntu](https://ubuntu.com/) interim (6-month release cadence) — Server minimal
 📦 Package manager | [nala](https://gitlab.com/volian/nala) 0.16.0 — pretty apt frontend (mirrors in `/etc/nala/sources.list`, aliases in `~/.bash_aliases`)
 🪟 Compositor | [niri](https://niri-wm.github.io/niri/) (scrollable tiling, pure Wayland)
 💻 Terminal Emulator | [Ghostty](https://ghostty.org/) (native Wayland, GPU-accelerated)
@@ -999,7 +999,7 @@ ls /dev/dri/                                 # card0 = Intel, card1 = NVIDIA
 > - `wp --parallax <file>` — static image with parallax workspace-scroll via **pandora**
 > - `wp stop` — clear
 > - Restored automatically at session start (niri `spawn-at-startup`); last file + mode live in `~/.cache/wp-current` / `~/.cache/wp-mode`
-> - **Known quirk**: pandora logs one benign `unknown variant CastsChanged` IPC warning on niri 26.04 (harmless — scroll still works)
+> - **Known quirk**: pandora logs one benign `unknown variant CastsChanged` IPC warning on niri (harmless — scroll still works)
 
 ---
 
@@ -1292,7 +1292,7 @@ current desktop state        ──┘           ▲
 **▶️ Install (rebuild the whole desktop from a fresh install):**
 
 ```bash
-# 1. Add the danklinux PPA (provides quickshell + niri on non-LTS releases)
+# 1. Add the danklinux PPA (provides quickshell + niri on interim releases)
 sudo add-apt-repository -y ppa:avengemedia/danklinux
 
 # 2. Add the Helium browser repo (real .deb, no snap)
@@ -1368,8 +1368,8 @@ systemctl list-unit-files --type=service --state=enabled --no-pager | \
 
 ## ℹ️ Quick facts
 
-- 🖥️ **OS**: Ubuntu non-LTS (6-month fixed release), fresh minimal server install
-- 📆 **Release plan**: non-LTS fixed-release cadence — bump to the next non-LTS release every 6 months
+- 🖥️ **OS**: Ubuntu interim (6-month release cadence), fresh minimal server install
+- 📆 **Release plan**: interim cadence — bump to the next Ubuntu interim release every 6 months
   via `sudo do-release-upgrade` (see [🚧 Work In Progress](#-work-in-progress))
 - 🪟 **Compositor**: niri (scrollable tiling Wayland compositor)
 - 🧱 **Shell**: a small hand-written quickshell UI (top bar: workspaces, net/mem/cpu stats, keyboard, date/clock, tray; bottom bar: app launcher + window taskbar)
