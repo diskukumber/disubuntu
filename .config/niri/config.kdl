@@ -1,0 +1,321 @@
+// ─────────────────────────────────────────────────────────────
+//  niri configuration — Ubuntu 26.04
+//  Single, organized file. Keybinds mirror the previous
+//  Hyprland setup (diskukumber/disnixos .config/hypr).
+//  Wiki:  https://niri-wm.github.io/niri/
+//  Reload: niri msg action load-config-file  (or Mod+Shift+R)
+// ─────────────────────────────────────────────────────────────
+
+// ── Environment ─────────────────────────────────────────────
+environment {
+    // Session identity
+    XDG_CURRENT_DESKTOP "niri"
+    XDG_SESSION_TYPE "wayland"
+    XDG_SESSION_DESKTOP "niri"
+
+    // Default apps
+    EDITOR "nano"
+    SUDO_EDITOR "nano"
+    BROWSER "helium"
+
+    // Toolkit backends (force Wayland everywhere)
+    QT_QPA_PLATFORM "wayland"
+    QT_QPA_PLATFORMTHEME "gtk3"
+    QT_QPA_PLATFORMTHEME_QT6 "gtk3"
+    QT_AUTO_SCREEN_SCALE_FACTOR "1"
+    GDK_BACKEND "wayland,x11"
+    SDL_VIDEODRIVER "wayland"
+    WINIT_UNIX_BACKEND "wayland"
+    MOZ_ENABLE_WAYLAND "1"
+    ELECTRON_OZONE_PLATFORM_HINT "auto"
+
+    // Cursor
+    XCURSOR_SIZE "24"
+}
+
+// ── Input ───────────────────────────────────────────────────
+input {
+    keyboard {
+        xkb {
+            // Same layouts + layout-switch shortcut as Hyprland.
+            layout "us,ara"
+            model "at-translated-set-2-keyboard"
+            options "grp:alt_shift_toggle"
+            // Change layouts with Alt+Shift; type: localectl set-x11-keymap <layout>
+        }
+        numlock
+    }
+
+    touchpad {
+        tap
+        natural-scroll
+    }
+
+    mouse {
+        // defaults (no natural-scroll for the mouse)
+    }
+}
+
+// ── Layout (Look & Feel) ────────────────────────────────────
+layout {
+    gaps 5
+
+    // Wallpaper is drawn by awww/pandora (see Startup); this is the fallback.
+    background-color "#111111"
+
+    // Gruvbox focus ring (matches the old hypr border colors).
+    focus-ring {
+        width 2
+        active-color "#8ec07c"
+        inactive-color "#d79921"
+    }
+
+    border {
+        off
+    }
+
+    shadow {
+        on
+        softness 30
+        spread 5
+        offset x=0 y=5
+        color "#0007"
+    }
+
+    default-column-width { proportion 0.5; }
+}
+
+// ── Startup (Autostart) ─────────────────────────────────────
+// The bar spawns from niri itself so it inherits WAYLAND_DISPLAY.
+spawn-at-startup "quickshell"
+
+// Wallpaper: awww (images/gifs) + restore the last wallpaper.
+spawn-at-startup "awww-daemon"
+spawn-at-startup "sh" "-c" "~/.local/bin/wp-restore"
+
+// ── Misc ────────────────────────────────────────────────────
+prefer-no-csd
+
+screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
+
+hotkey-overlay {
+    // shows the "Important Hotkeys" popup on first start
+}
+
+animations {
+    // defaults (slowdown 1.0)
+}
+
+// ── Window rules ────────────────────────────────────────────
+// Terminals: no focus-ring/border rectangle behind the window.
+window-rule {
+    match app-id="com.mitchellh.ghostty"
+    match app-id="Alacritty"
+    draw-border-with-background false
+}
+
+// Rounded corners for everything.
+window-rule {
+    geometry-corner-radius 12
+    clip-to-geometry true
+}
+
+// Slight dimming of inactive windows.
+window-rule {
+    match is-active=false
+    opacity 0.9
+}
+
+// Dialog-like windows float (ported from the hypr Window-Rules).
+window-rule {
+    match app-id=r#"^(dialog|confirm|error|notification|download|file_progress)$"#
+    open-floating true
+}
+
+// quickshell popups float by default.
+window-rule {
+    match app-id=r#"org.quickshell$"#
+    open-floating true
+}
+
+// ── Layer rules ─────────────────────────────────────────────
+// quickshell layers render on the overview backdrop.
+layer-rule {
+    match namespace="^quickshell$"
+    place-within-backdrop true
+}
+// pandora parallax wallpaper scrolls with the workspace strip.
+layer-rule {
+    match namespace="^pandora$"
+    place-within-backdrop true
+}
+
+// ── Keybindings (Hyprland parity) ───────────────────────────
+// Mod = Super/Win key, exactly like $mainMod in the old config.
+binds {
+    // ── General ──
+    Mod+Shift+Slash { show-hotkey-overlay; }                    // help overlay
+    Ctrl+Space { spawn "kando"; }                               // hypr: pie menu (needs kando)
+    Mod+Return hotkey-overlay-title="Open a Terminal: ghostty" { spawn "ghostty"; }
+    Mod+T hotkey-overlay-title="Open a Terminal: ghostty" { spawn "ghostty"; }
+    Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
+    Mod+R hotkey-overlay-title="App Launcher (quickshell)" { spawn-sh "echo toggle >> /tmp/qs-launcher-toggle"; }
+    Mod+S hotkey-overlay-title="Screenshot (select area)" { screenshot; }   // hypr: grim+slurp
+
+    // ── Session ──
+    Mod+Shift+Q { quit; }                                       // hypr: exit
+    Mod+Shift+E { quit; }                                       // alt
+    Ctrl+Alt+Delete { quit; }
+    Mod+Shift+R repeat=false { spawn-sh "niri msg action load-config-file"; } // hypr: reload
+    Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
+    Mod+Shift+P { power-off-monitors; }
+
+    // ── Locker ──
+    // hypr locked with XF86Lock + gtklock. Bind a combo here once a
+    // locker is installed (e.g. Mod+Shift+L { spawn "gtklock"; }).
+
+    // ── Audio (wpctl; PipeWire restore pending) ──
+    XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.05+ -l 1.0"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.05-"; }
+    XF86AudioMute        allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"; }
+    XF86AudioMicMute     allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"; }
+
+    // ── Media keys (needs playerctl) ──
+    XF86AudioNext { spawn "playerctl" "next"; }
+    XF86AudioPrev { spawn "playerctl" "previous"; }
+    XF86AudioPlay { spawn "playerctl" "play-pause"; }
+    XF86AudioPause { spawn "playerctl" "pause"; }
+    XF86AudioStop { spawn "playerctl" "stop"; }
+
+    // ── App / shortcut keys (needs the app installed) ──
+    XF86Tools        { spawn "spotify"; }
+    XF86Explorer     { spawn "nemo"; }
+    XF86Mail         { spawn "thunderbird"; }
+
+    // ── Brightness (brightnessctl) ──
+    XF86MonBrightnessUp   allow-when-locked=true { spawn "brightnessctl" "set" "+10%"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "set" "10%-"; }
+
+    // ── Window management ──
+    Mod+Q repeat=false { close-window; }                        // hypr: killactive
+    Mod+F { fullscreen-window; }                                // hypr: fullscreen
+    Mod+Shift+F { maximize-column; }                            // niri: maximize
+    Mod+Space { toggle-window-floating; }                       // hypr: togglefloating
+    Mod+Ctrl+V  { toggle-window-floating; }                     // alt
+    Mod+Shift+V { switch-focus-between-floating-and-tiling; }
+    Mod+W { toggle-column-tabbed-display; }
+    // hypr Super+Z pseudotile / Super+X togglesplit: niri is scroll-tiling,
+    // no dwindle split modes — intentionally not carried over.
+
+    // ── Move focus (hypr: movefocus) ──
+    Mod+Left  { focus-column-left; }
+    Mod+Down  { focus-window-down; }
+    Mod+Up    { focus-window-up; }
+    Mod+Right { focus-column-right; }
+    Mod+H     { focus-column-left; }
+    Mod+J     { focus-window-down; }
+    Mod+K     { focus-window-up; }
+    Mod+L     { focus-column-right; }
+
+    // ── Move window/column (hypr: movewindow) ──
+    Mod+Shift+Left  { move-column-left; }
+    Mod+Shift+Right { move-column-right; }
+    Mod+Shift+Up    { move-window-up; }
+    Mod+Shift+Down  { move-window-down; }
+    Mod+Shift+H     { move-column-left; }
+    Mod+Shift+J     { move-window-down; }
+    Mod+Shift+K     { move-window-up; }
+    Mod+Shift+L     { move-column-right; }
+    Mod+Ctrl+H      { move-column-left; }                       // niri alt
+    Mod+Ctrl+J      { move-window-down; }
+    Mod+Ctrl+K      { move-window-up; }
+    Mod+Ctrl+L      { move-column-right; }
+
+    // ── Resize (hypr: resizeactive) ──
+    Mod+Ctrl+Left  { set-column-width "-10%"; }
+    Mod+Ctrl+Right { set-column-width "+10%"; }
+    Mod+Ctrl+Down  { set-window-height "-10%"; }
+    Mod+Ctrl+Up    { set-window-height "+10%"; }
+    Mod+Minus { set-column-width "-10%"; }
+    Mod+Equal { set-column-width "+10%"; }
+    Mod+Shift+Minus { set-window-height "-10%"; }
+    Mod+Shift+Equal { set-window-height "+10%"; }
+
+    // ── Column geometry (niri extras) ──
+    Mod+Home { focus-column-first; }
+    Mod+End  { focus-column-last; }
+    Mod+Ctrl+Home { move-column-to-first; }
+    Mod+Ctrl+End  { move-column-to-last; }
+    Mod+Comma { consume-window-into-column; }
+    Mod+Period { expel-window-from-column; }
+    Mod+BracketLeft  { consume-or-expel-window-left; }
+    Mod+BracketRight { consume-or-expel-window-right; }
+    Mod+Ctrl+W { switch-preset-column-width; }
+    Mod+Ctrl+Shift+W { switch-preset-column-width-back; }
+    Mod+Ctrl+Shift+R { switch-preset-window-height; }
+    Mod+Ctrl+R { reset-window-height; }
+    Mod+Ctrl+F { expand-column-to-available-width; }
+    Mod+C { center-column; }
+    Mod+Ctrl+C { center-visible-columns; }
+
+    // ── Monitor focus (niri) ──
+    Mod+Alt+Left  { focus-monitor-left; }
+    Mod+Alt+Right { focus-monitor-right; }
+    Mod+Alt+Up    { focus-monitor-up; }
+    Mod+Alt+Down  { focus-monitor-down; }
+    Mod+Shift+Alt+Left  { move-column-to-monitor-left; }
+    Mod+Shift+Alt+Right { move-column-to-monitor-right; }
+    Mod+Shift+Alt+Up    { move-column-to-monitor-up; }
+    Mod+Shift+Alt+Down  { move-column-to-monitor-down; }
+
+    // ── Workspaces ──
+    Mod+1 { focus-workspace 1; }
+    Mod+2 { focus-workspace 2; }
+    Mod+3 { focus-workspace 3; }
+    Mod+4 { focus-workspace 4; }
+    Mod+5 { focus-workspace 5; }
+    Mod+6 { focus-workspace 6; }
+    Mod+7 { focus-workspace 7; }
+    Mod+8 { focus-workspace 8; }
+    Mod+9 { focus-workspace 9; }
+    Mod+0 { focus-workspace 10; }                               // hypr: workspace 10
+
+    // Move window to workspace (hypr: movetoworkspace)
+    Mod+Shift+1 { move-column-to-workspace 1; }
+    Mod+Shift+2 { move-column-to-workspace 2; }
+    Mod+Shift+3 { move-column-to-workspace 3; }
+    Mod+Shift+4 { move-column-to-workspace 4; }
+    Mod+Shift+5 { move-column-to-workspace 5; }
+    Mod+Shift+6 { move-column-to-workspace 6; }
+    Mod+Shift+7 { move-column-to-workspace 7; }
+    Mod+Shift+8 { move-column-to-workspace 8; }
+    Mod+Shift+9 { move-column-to-workspace 9; }
+    Mod+Shift+0 { move-column-to-workspace 10; }
+
+    Mod+Page_Down      { focus-workspace-down; }
+    Mod+Page_Up        { focus-workspace-up; }
+    Mod+U              { focus-workspace-down; }
+    Mod+I              { focus-workspace-up; }
+    Mod+Ctrl+Page_Down { move-column-to-workspace-down; }
+    Mod+Ctrl+Page_Up   { move-column-to-workspace-up; }
+    Mod+Shift+Page_Down { move-workspace-down; }
+    Mod+Shift+Page_Up   { move-workspace-up; }
+
+    // hypr: workspace e+1 / e-1 on mouse wheel
+    Mod+WheelScrollDown cooldown-ms=150 { focus-workspace-down; }
+    Mod+WheelScrollUp   cooldown-ms=150 { focus-workspace-up; }
+    Mod+Ctrl+WheelScrollDown cooldown-ms=150 { move-column-to-workspace-down; }
+    Mod+Ctrl+WheelScrollUp   cooldown-ms=150 { move-column-to-workspace-up; }
+    Mod+WheelScrollRight { focus-column-right; }
+    Mod+WheelScrollLeft  { focus-column-left; }
+    Mod+Ctrl+WheelScrollRight { move-column-right; }
+    Mod+Ctrl+WheelScrollLeft  { move-column-left; }
+
+    // ── Overview ──
+    Mod+O repeat=false { toggle-overview; }
+
+    // ── Screenshots ──
+    Print { screenshot; }
+    Ctrl+Print { screenshot-screen; }
+    Alt+Print { screenshot-window; }
+}
