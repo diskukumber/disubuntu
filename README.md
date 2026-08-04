@@ -12,7 +12,7 @@ An Ubuntu interim-based setup, lean by design, refreshed on the interim release 
 | Section | Covers |
 |---|---|
 | [📸 Screenshots](#-screenshots) | how screenshots are taken & where they land |
-| [📥 Installation](#-installation) | categorized install commands, repos, one-shot install, rebuild checklist |
+| [📥 Installation](#-installation) | the full path: get the minimized server ISO → strip to a pure base → switch to the interim cadence → add every package, in order |
 | [🖥️ Hardware](#-hardware) | the machine: CPU, RAM, storage, dual-GPU hybrid graphics |
 | [🧩 Software stack & package inventory](#-software-stack--package-inventory) | the diagram, who does what, every package, process count |
 | [🚀 Session Startup](#-session-startup) | greetd → niri → quickshell boot chain |
@@ -48,90 +48,195 @@ docs/system/screenshots/<name>.png
 ## 📥 Installation
 
 <details>
-<summary><h3>📥 INSTALLATION — Ubuntu interim</h3></summary>
+<summary><h3>📥 INSTALLATION — from zero, in order</h3></summary>
 
 > [!TIP]
-> Start from a fresh [Ubuntu Server](https://ubuntu.com/server) **minimal**
-> install and boot once to make sure the base system is healthy. The whole
-> state is reproducible — every command is in this document (see
-> [📜 Provisioning & Baseline](#-provisioning--baseline)).
+> The whole path is reproducible — every step is a command in this document.
+> Follow the numbered sections **in order**; each leaves the machine in a
+> verifiable state before the next.
 
-### 🗔 niri And The Bar
-```sh
-sudo apt install -y niri quickshell \
-  qml6-module-qtquick-layouts \
-  ghostty fuzzel wl-clipboard
+---
+
+### 1️⃣ Which Ubuntu to get — the *minimized server*, not the regular one
+
+**Use the Ubuntu _Server_ image, and inside the installer pick the
+"Minimized" profile.** This is not the same as the regular install:
+
+| Installer profile | What you get | Why we avoid it |
+|---|---|---|
+| **Ubuntu Server (default)** | full server stack: snapd, cloud-init, LXD, iSCSI, multipath, ModemManager, … | installed junk we'd have to purge |
+| ✅ **Ubuntu Server — "Minimized"** | just the base: kernel, systemd, coreutils, apt, ssh | the lean base we build on |
+
+**How to get it:**
+1. Grab the current Ubuntu Server ISO from <https://ubuntu.com/download/server>.
+2. Boot the installer; at the **software selection** step choose
+   **Ubuntu Server** → then tick **"Minimized"**.
+3. Finish the install, reboot, and verify the machine comes up (SSH or TTY).
+
+> [!NOTE]
+> The "Minimized" profile installs the `ubuntu-server-minimal` metapackage —
+> ~27 direct dependencies (kernel, systemd, apt, coreutils…). The full
+> inventory is in [📜 Provisioning & Baseline](#-provisioning--baseline).
+
+---
+
+### 2️⃣ What the minimal install comes with
+
+The base image gives you a *working system and nothing else*:
+
+| Component | Ships with minimal? | Note |
+|---|---|---|
+| Linux kernel (`linux-generic`) + GRUB/EFI + Secure Boot | ✅ | installer-level, never touched |
+| `systemd` (init + resolved + networkd + journald) | ✅ | the service manager |
+| `apt` + `nala` (not installed; alias later) | ✅ / ⬜ | `nala` added in step 5 |
+| SSH server | ✅ | headless access |
+| `snapd`, `cloud-init`, LXD, iSCSI, multipath, ModemManager | ⬜ (minimized) | *still purge them defensively*, see step 3 |
+| Desktop, display manager, GUI apps | ❌ | we add our own stack |
+
+---
+
+### 3️⃣ Strip it down further — no snaps, no unused packages, nothing in the background
+
+Even the minimized profile ships a few leftovers. Remove them so **nothing runs
+in the background** beyond systemd, and no snap exists anywhere:
+
+```bash
+# 3a. Purge snap — completely gone (no daemons, no loop mounts, no /snap)
+sudo apt-get purge -y snapd snapd.socket
+sudo rm -rf /snap /var/snap /var/lib/snapd /root/snap /home/*/snap
+
+# 3b. Purge cloud provisioning + container/server leftovers (not used on bare metal)
+sudo apt-get purge -y cloud-init lxd-installer
+sudo rm -rf /etc/cloud /var/lib/cloud
+
+# 3c. Remove SAN/multipath/mobile-broadband leftovers from the server image
+sudo apt-get purge -y open-iscsi multipath-tools modemmanager
+
+# 3d. Disable crash/reporting leftovers
+sudo systemctl disable --now kdump-tools apport
+
+# 3e. Clean apt + journal caches
+sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/* && sudo apt-get update
+sudo journalctl --vacuum-size=200M
+
+# 3f. Verify: nothing snap, nothing cloud, no iscsi/multipath/modem
+snap --version          # should fail: command not found
+systemctl list-unit-files --state=enabled --no-pager | wc -l   # baseline: ~33 services
 ```
 
-### 🧰 Dependencies
-```sh
-sudo apt install -y greetd xdg-desktop-portal polkitd \
-  brightnessctl
+After this the machine is a **pure minimal system** — systemd, kernel,
+coreutils, apt. Everything else that runs later is something *we* added
+(see the service inventory in [🧹 Maintenance](#-maintenance--service-inventory)).
+
+---
+
+### 4️⃣ Switch to the interim release cadence
+
+The Ubuntu Server ISO installs an **LTS** by default. This setup runs the
+**interim (non-LTS)** 6-month cadence instead:
+
+```bash
+# 4a. Tell the upgrader to chase interim releases, not LTS-to-LTS
+sudo sed -i 's/^Prompt=.*/Prompt=normal/' /etc/update-manager/release-upgrades
+grep '^Prompt' /etc/update-manager/release-upgrades    # → Prompt=normal
+
+# 4b. Upgrade to the current interim release (26.10 & later: 27.04, …)
+sudo do-release-upgrade -d
+sudo reboot
 ```
 
-### 🌐 Bluetooth And Network
-```sh
-sudo apt install -y network-manager wpa_supplicant bluez
-```
+> [!NOTE]
+> `Prompt=normal` is the *interim* mode. The default `Prompt=lts` would keep
+> you on LTS forever — this is the single setting that defines the cadence.
+> `-d` is required when the target interim release is still in development;
+> drop it once it's released. Verify after reboot:
+> `cat /etc/os-release | grep VERSION_CODENAME` and repeat
+> `do-release-upgrade` **every 6 months** (the cadence in
+> [🚧 Work In Progress](#-work-in-progress)).
 
-### 🌍 Browser (real .deb — no snap)
-```sh
+---
+
+### 5️⃣ What we add — every package, with a reason
+
+**5a. Repositories** (order matters):
+
+| Source | Provides | When |
+|---|---|---|
+| Ubuntu main/universe | base + most tools | preconfigured |
+| `ppa:avengemedia/danklinux` | quickshell + niri (official Ubuntu packaging) | now |
+| `pkg.helium.computer/deb` | `helium-bin` browser (real .deb, no snap) | now |
+
+```bash
+# 5b. Add the PPA + browser repo
+sudo add-apt-repository -y ppa:avengemedia/danklinux
 curl -fsSL https://raw.githubusercontent.com/imputnet/helium-linux/main/pubkey.asc \
   | sudo gpg --dearmor -o /usr/share/keyrings/helium.gpg
 echo "deb [arch=amd64 signed-by=/usr/share/keyrings/helium.gpg] https://pkg.helium.computer/deb stable main" \
   | sudo tee /etc/apt/sources.list.d/helium.list
-sudo apt update && sudo apt install -y helium-bin
+sudo apt update
 ```
 
-### 🔤 Fonts
-```sh
+**5c. The stack — every package, grouped by purpose:**
+
+```bash
+# Compositor + UI
+sudo apt install -y niri quickshell qml6-module-qtquick-layouts
+
+# Terminal + launcher + clipboard
+sudo apt install -y ghostty fuzzel wl-clipboard
+
+# Session helpers
+sudo apt install -y greetd xdg-desktop-portal polkitd brightnessctl
+
+# Media keys + audio control (audio restore: see step 5d)
+sudo apt install -y playerctl pipewire pipewire-pulse wireplumber
+
+# Network (if not already enabled by the installer)
+sudo apt install -y network-manager wpa_supplicant
+
+# Fonts (bar + terminal + emoji)
 sudo apt install -y fonts-inter fonts-jetbrains-mono \
-  fonts-noto-core fonts-noto-color-emoji
+  fonts-noto-core fonts-noto-color-emoji fonts-materialdesignicons-webfont
+
+# NVIDIA desktop driver (replaces the server variant)
+sudo apt install -y nvidia-driver-595
+
+# Terminal fallback + build deps (used by the awww wallpaper helper)
+sudo apt install -y alacritty cargo rustc pkg-config libwayland-dev liblz4-dev
+
+# Browser (real .deb, no snap)
+sudo apt install -y helium-bin
+
+# Pretty apt frontend
+sudo apt install -y nala
 ```
 
-### 🎮 NVIDIA drivers
-```sh
-sudo apt install -y nvidia-driver-595
+**5d. Audio note:** `pipewire`/`wireplumber` were purged on this machine
+during the GNOME cleanup; install them here to restore sound (volume keys are
+already bound to `wpctl` in the config).
+
+**5e. What each package does** — see the full purpose tables in
+[🧩 Software stack & package inventory](#-software-stack--package-inventory)
+(every package is listed there with a "why" column).
+
+---
+
+### 6️⃣ NVIDIA driver follow-up (required after step 5)
+
+```bash
+# kernel cmdline + VRAM fix + groups — full steps in the NVIDIA section
+sudoedit /etc/default/grub        # add nvidia-drm.modeset=1
+sudo usermod -aG video,render $USER
+sudo update-grub
 ```
 
 > [!IMPORTANT]
-> After the driver: add `nvidia-drm.modeset=1` to the kernel cmdline, apply
-> the VRAM heap fix profile, add the user to `video,render`, and
-> `sudo update-grub` — full steps in the [🎮 NVIDIA section](#-nvidia).
+> Apply the VRAM heap reuse fix (Step 2 in [🎮 NVIDIA](#-nvidia)) **before**
+> first GUI session — niri can otherwise hoard 1 GiB+ of VRAM.
 
-### 📚 Repositories
+---
 
-| Source | Status | Provides |
-|---|---|---|
-| Ubuntu main/universe | preconfigured | base system, niri, ghostty, fuzzel, fonts, tools |
-| Ubuntu restricted | preconfigured | NVIDIA 595 |
-| `ppa:avengemedia/danklinux` | preconfigured | quickshell (official Ubuntu packaging) |
-| `pkg.helium.computer/deb` (keyring `helium.gpg`) | commands in [📜 Provisioning](#-provisioning--baseline) | `helium-bin` browser (real .deb — no snap) |
-
-### ⚡ The one-shot install
-
-```bash
-# 1. Refresh package lists
-sudo apt update
-
-# 2. Install the stack
-sudo apt install -y \
-    quickshell ghostty \
-    nvidia-driver-595 \
-    wl-clipboard brightnessctl \
-    qml6-module-qtquick-layouts \
-    fonts-inter fonts-jetbrains-mono fonts-noto-core fonts-noto-color-emoji
-```
-
-### ✅ Already present from the Ubuntu base install
-
-- **niri** + systemd units (`niri.service`) + session file
-- **greetd** (login manager, configured but currently **disabled** — see [🚀 Session Startup](#-session-startup))
-- **fuzzel** and **alacritty** (fallback tools)
-- **xdg-desktop-portal**, **polkit**, **accountsservice**
-- **waybar** is spawned by the *stock* niri config only — our config doesn't start it
-
-### 📄 Config files (all ours, no third-party configs)
+### 7️⃣ Config files (all ours, no third-party configs)
 
 | File | What it is |
 |---|---|
@@ -142,15 +247,24 @@ sudo apt install -y \
 | `~/.config/quickshell/Launcher.qml` | app launcher popup |
 | `~/.config/ghostty/config` | terminal |
 
-### 📝 Rebuilding from scratch checklist
+These live in the `disubuntu` repo (`dotfiles/`) and are symlinked into
+`~/.config/` — edit once, sync with `git push`.
 
-- [ ] `sudo apt install -y quickshell ghostty nvidia-driver-595 wl-clipboard brightnessctl qml6-module-qtquick-layouts fonts-inter fonts-jetbrains-mono fonts-noto-core fonts-noto-color-emoji`
-- [ ] `nvidia-drm.modeset=1` kernel cmdline (see [🎮 NVIDIA](#-nvidia))
+---
+
+### 8️⃣ Rebuilding from scratch checklist
+
+- [ ] Install **Ubuntu Server "Minimized"** from the ISO
+- [ ] Run step 3 (purge snaps/cloud/leftovers) + step 4 (interim cadence)
+- [ ] `sudo add-apt-repository -y ppa:avengemedia/danklinux` + helium repo
+- [ ] Install all packages from step 5c
+- [ ] `nvidia-drm.modeset=1` kernel cmdline + `sudo update-grub` (see [🎮 NVIDIA](#-nvidia))
 - [ ] NVIDIA VRAM fix JSON (see [🎮 NVIDIA](#-nvidia))
 - [ ] `sudo usermod -aG video,render $USER`
 - [ ] `sudo systemctl enable --now greetd` (auto-login; else start `niri-session` from a TTY)
-- [ ] `sudo update-grub`
+- [ ] Copy configs from this repo (step 7)
 - [ ] Reboot → log in on tty1 (greetd handles it)
+- [ ] `systemctl --user status niri` + `pgrep -a quickshell` → desktop up
 </details>
 
 ---
@@ -212,7 +326,7 @@ cat /sys/class/drm/card1/device/... # raw GPU info if needed
 ## 🧩 Software stack & package inventory
 
 What runs, what each piece does, and every installed package by category.
-(Full `dpkg` list: **1089 packages**; manually installed: **61** — snapshot 2026-08-04.)
+(Full `dpkg` list: **1117 packages**; manually installed: **73** — snapshot 2026-08-04.)
 
 ### 🗺️ The whole setup, one diagram
 
@@ -992,7 +1106,7 @@ ls /dev/dri/                                 # card0 = Intel, card1 = NVIDIA
 🖼️ Wallpaper | [awww](https://codeberg.org/hurlbutt/awww) (images/GIFs, built from source) • [pandora](https://github.com/PandorasFox/pandora) (parallax scroll) — swap with `wp` / `wp --parallax`
 🔐 Authentication agent | polkitd
 🌐 Network management | [NetworkManager](https://networkmanager.dev/) + `wpa_supplicant`
-📡 Bluetooth | not installed — `bluez` + `bluez-utils` optional (see [📥 Installation](#-installation))
+📡 Bluetooth | not installed — optional; add later with `sudo apt install bluez bluez-utils` (not part of the lean base)
 🔊 Audio control | pipewire + wireplumber (purged 2026-08-04, needs restore — see [🚧 Work In Progress](#-work-in-progress))
 🔋 Power management | nvidia-powerd (nvidia-suspend/resume/hibernate units)
 🎮 Graphics | Intel UHD (iGPU, drives panel) + NVIDIA RTX 2060 Mobile (dGPU, renders via nvidia-driver-595)
@@ -1297,29 +1411,17 @@ current desktop state        ──┘           ▲
 
 **▶️ Install (rebuild the whole desktop from a fresh install):**
 
+Follow the numbered [📥 Installation](#-installation) flow — it is the
+authoritative, in-order command list:
+
 ```bash
-# 1. Add the danklinux PPA (provides quickshell + niri on interim releases)
-sudo add-apt-repository -y ppa:avengemedia/danklinux
-
-# 2. Add the Helium browser repo (real .deb, no snap)
-curl -fsSL https://raw.githubusercontent.com/imputnet/helium-linux/main/pubkey.asc \
-  | sudo gpg --dearmor -o /usr/share/keyrings/helium.gpg
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/helium.gpg] https://pkg.helium.computer/deb stable main" \
-  | sudo tee /etc/apt/sources.list.d/helium.list > /dev/null
-
-# 3. Install the desktop stack
-sudo apt-get update
-sudo apt-get install -y alacritty brightnessctl fuzzel ghostty greetd helium-bin niri \
-  qml6-module-qtquick-layouts quickshell wl-clipboard \
-  fonts-inter fonts-jetbrains-mono fonts-noto-color-emoji fonts-noto-core
-sudo apt-get install -y nvidia-driver-595
-
-# 4. Enable the desktop services
-sudo systemctl enable --now greetd network-manager wpa_supplicant
-
-# 5. Copy the configs back in place (see 📄 Config files in 📥 Installation)
-#    ~/.config/niri/config.kdl · ~/.config/quickshell/*.qml · ~/.config/ghostty/config
-#    /etc/greetd/config.toml · NVIDIA fixes (see 🎮 NVIDIA)
+# Step 1-2: install Ubuntu Server "Minimized" from the ISO, verify it boots
+# Step 3:   strip to a pure base (purge snaps, cloud-init, leftovers)
+# Step 4:   switch to the interim cadence (Prompt=normal + do-release-upgrade)
+# Step 5:   repos + every package (niri, quickshell, ghostty, nvidia, fonts, …)
+# Step 6:   NVIDIA kernel cmdline + VRAM fix + groups
+# Step 7:   copy the configs from this repo into ~/.config/
+# Step 8:   sudo systemctl enable --now greetd  +  reboot
 ```
 
 **⏹️ Reset (undo everything, back to near-baseline):**
@@ -1349,10 +1451,14 @@ sudo apt-get update && sudo apt-get autoremove --purge -y
 
 ### ✅ Post-reboot verification
 
+Run the [reinstall checklist](#-after-a-reinstall-checklist) below after any
+reboot — it proves the desktop came up end-to-end (greetd → niri → quickshell →
+NVIDIA → network).
+
 ### 🗃️ Reference snapshots
 
-Current machine state (snapshot 2026-08-04): **1089 packages** installed,
-**61 manually installed**, **33 enabled services**. Regenerate these lists
+Current machine state (snapshot 2026-08-04): **1117 packages** installed,
+**73 manually installed**, **33 enabled services**. Regenerate these lists
 anytime with:
 
 ```bash
