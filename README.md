@@ -90,53 +90,91 @@ docs/system/screenshots/<name>.png
 
 > [!NOTE]
 > The "Minimized" profile installs the `ubuntu-server-minimal` metapackage —
-> ~27 direct dependencies (kernel, systemd, apt, coreutils…). The full
-> inventory is in [📜 Provisioning & Baseline](#-provisioning--baseline).
+> 27 direct dependencies + 4 Recommends (kernel, systemd, apt, coreutils…
+> plus the Canonical/server extras). The complete keep/remove inventory is in
+> [step 2](#2️⃣-what-the-minimal-install-comes-with--the-full-inventory).
 
 ---
 
-### 2️⃣ What the minimal install comes with
+### 2️⃣ What the minimal install comes with — the full inventory
 
-The **"Minimized"** profile installs the `ubuntu-server-minimal` metapackage
-(~27 direct deps) plus the installer base layer. Two kinds of things are in it:
-**essentials** (keep) and **Canonical extras** (we remove in step 3):
+The **"Minimized"** profile installs exactly two sources of packages:
 
-**Keep — the essentials:**
-
-| Component | What it is |
+| Source | What it is |
 |---|---|
-| `linux-generic` kernel + `grub-efi-amd64` + `shim-signed` | the boot stack (Secure Boot), never touched |
-| `systemd` + `systemd-resolved` + `journald` | the service manager + DNS resolver + logs |
-| `apt` | package manager (we add `nala` as a frontend later) |
-| `openssh-server` | headless access |
-| `sudo` / `sudo-rs`, `udev`, `locales`, `nano` | base userland |
-| `chrony`, `apparmor`, `unattended-upgrades` | time sync, security, auto security updates |
-| `ubuntu-drivers-common`, `ubuntu-release-upgrader-core` | GPU driver handling + the upgrader (needed for step 4!) |
-| `gpu-manager` service | GPU detection (ships with `ubuntu-drivers-common`) |
+| `ubuntu-server-minimal` metapackage | **27 direct deps** + 4 Recommends (installed alongside) — the base system *plus* the Canonical/server extras below |
+| installer base layer | kernel, bootloader, SSH, locales + a few server leftovers (modemmanager, avahi, …) |
 
-**Remove — the Canonical/server extras (step 3 purges these):**
+Every package that lands on a fresh install is in the tables below, grouped
+with a verdict. What's marked ❌ is the Canonical/server stuff this setup
+purges in step 3.
+
+> [!NOTE]
+> **What "Canonical extras" / "snap" means:** things Canonical ships for
+> cloud/enterprise/telemetry that a personal laptop never uses — `snapd` (the
+> snap packaging framework: containerized bundles, 7 daemons, loop mounts),
+> `cloud-init` (cloud provisioning), `apport` (crash reporting), `pollinate`
+> (entropy seeding). None serve a bare-metal workstation. Purging them leaves
+> a base that is only systemd + coreutils + apt — every daemon after that is
+> one *we* chose.
+>
+> Inventory verified against `apt-cache depends ubuntu-server-minimal`
+> (1.570.2, current interim release).
+
+**🧱 Boot & storage stack — keep forever:**
+
+| Package | What it is | Verdict |
+|---|---|---|
+| `linux-generic` | the kernel | ✅ keep |
+| `grub-efi-amd64` + `shim-signed` | bootloader + Secure Boot | ✅ keep |
+| `cryptsetup` · `lvm2` · `mdadm` | disk encryption / LVM / RAID tools | ✅ keep (tiny; the installer uses them) |
+
+**📦 Base system — the clean core:**
+
+| Package | What it is | Verdict |
+|---|---|---|
+| `apt` | package manager (we add `nala` as a frontend later) | ✅ keep |
+| `systemd` + `systemd-sysv` + `systemd-resolved` | the service manager + DNS resolver | ✅ keep |
+| `dbus` · `udev` | IPC bus · device management | ✅ keep |
+| `sudo` / `sudo-rs` | privilege elevation | ✅ keep |
+| `apparmor` | mandatory access control | ✅ keep |
+| `chrony` | time sync | ✅ keep |
+| `netbase` · `e2fsprogs` · `xfsprogs` · `btrfs-progs` · `bcache-tools` | network + filesystem base | ✅ keep |
+| `locales` · `nano` · util-linux/coreutils set | base userland | ✅ keep |
+| `openssh-server` | headless access | ✅ keep (remove only if you never SSH in) |
+| `hwctl` · `needrestart` · `unattended-upgrades` | hardware probing · restart reminders · auto security updates (metapackage Recommends) | ✅ keep |
+| `ubuntu-drivers-common` (+ `gpu-manager`) | GPU driver handling + detection | ✅ keep |
+| `ubuntu-release-upgrader-core` | the distro upgrader — **required for step 4** (interim cadence) | ✅ keep |
+
+**🔴 Canonical extras — purge (step 3b):**
 
 | Package | What it is | Why remove |
 |---|---|---|
-| `snapd` | snap framework | 7 daemons for 0 snaps |
+| `snapd` (+ `snapd.socket`) | the snap packaging framework | 7 daemons for 0 snaps |
 | `cloud-init` | cloud provisioning | unused on bare metal (5 services) |
-| `open-iscsi`, `multipath-tools`, `modemmanager` | SAN / multipath / mobile-broadband | server-image leftovers |
-| `apport` (+core-dump-handler, +symptoms) | crash reporting | useless on a personal machine |
-| `kdump-tools` | kernel crash dumps | a laptop never crash-dumps to disk |
-| `pollinate` | Canonical entropy seeding | cloud-image feature |
+| `apport` (+ `apport-core-dump-handler`, `apport-symptoms`) | crash reporting | useless on a personal machine |
+| `kdump-tools` | kernel crash dumps (metapackage Recommends) | a laptop never crash-dumps to disk |
+| `pollinate` | Canonical entropy seeding | cloud-image feature (may already be absent on newer releases — harmless no-op) |
+| `unminimize` | reverses the minimized image (reinstalls docs/manpages) | we want to *stay* minimal |
+
+**🔴 Server-image leftovers — purge (step 3c):**
+
+| Package | What it is | Why remove |
+|---|---|---|
+| `open-iscsi` | iSCSI SAN client | no SAN |
+| `multipath-tools` | multipath storage | single NVMe |
+| `modemmanager` | mobile-broadband modem daemon | no SIM slot |
+| `lxd-installer` | LXD container wrapper | no containers |
 | `avahi-daemon` | mDNS/Bonjour | nothing here uses it |
 | `udisks2` | storage D-Bus daemon | no file manager needs it |
 | `networkd-dispatcher` | systemd-networkd event handler | we use NetworkManager, not networkd |
-| `lxd-installer` | LXD container wrapper | no containers |
-| `unminimize` | un-restores "minimized" images (applies docs/manpages back) | we want to *stay* minimal |
 
-**Optional (judgment call, safe to keep):**
+**🟡 Optional — your call (safe either way):**
 
 | Package | Note |
 |---|---|
 | `thermald` | Intel thermal daemon — useful on a laptop, tiny; keep unless you want zero daemons |
 | `accountsservice` | user-account D-Bus — greetd/agreety works without it |
-| `needrestart` | reminds you to restart daemons after library upgrades — genuinely useful, keep |
 
 > [!NOTE]
 > `nautilus`, `gvfs*` and `xdg-desktop-portal-gnome` are **not** in the base —
@@ -145,32 +183,38 @@ The **"Minimized"** profile installs the `ubuntu-server-minimal` metapackage
 
 ---
 
-### 3️⃣ Strip it down further — no snaps, no unused packages, nothing in the background
+### 3️⃣ Strip it down — no snaps, no Canonical, no server leftovers
 
-Remove the Canonical extras so **nothing runs in the background** beyond
-systemd, and no snap exists anywhere:
+Remove everything marked ❌ in step 2 so **nothing runs in the background**
+beyond systemd, and no snap exists anywhere:
 
 ```bash
-# 3a. Purge snap — completely gone (no daemons, no loop mounts, no /snap)
+# 3a. Snap — completely gone (no daemons, no loop mounts, no /snap)
 sudo apt-get purge -y snapd snapd.socket
 sudo rm -rf /snap /var/snap /var/lib/snapd /root/snap /home/*/snap
 
-# 3b. Purge cloud provisioning + container/server leftovers (not used on bare metal)
-sudo apt-get purge -y cloud-init lxd-installer
+# 3a'. Snap, permanently — pin snapd so apt can never pull it back as a dep
+sudo tee /etc/apt/preferences.d/no-snap.pref > /dev/null <<'EOF'
+Package: snapd
+Pin: release a=*
+Pin-Priority: -10
+EOF
+apt-cache policy snapd    # → Candidate: (none)
+
+# 3b. Canonical extras — cloud provisioning, crash reporting, image helpers
+sudo apt-get purge -y cloud-init pollinate unminimize \
+  apport apport-core-dump-handler apport-symptoms kdump-tools
 sudo rm -rf /etc/cloud /var/lib/cloud
 
-# 3c. Remove SAN/multipath/mobile-broadband leftovers from the server image
-sudo apt-get purge -y open-iscsi multipath-tools modemmanager
+# 3c. Server-image leftovers — SAN/multipath/modem/containers/networkd/mDNS/storage
+sudo apt-get purge -y open-iscsi multipath-tools modemmanager lxd-installer \
+  avahi-daemon udisks2 networkd-dispatcher
 
-# 3d. Purge crash-reporting + Canonical extras (not just disable — uninstall)
-sudo apt-get purge -y apport apport-core-dump-handler apport-symptoms kdump-tools \
-  pollinate avahi-daemon udisks2 networkd-dispatcher unminimize
-
-# 3e. Clean apt + journal caches
+# 3d. Clean apt + journal caches
 sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/* && sudo apt-get update
 sudo journalctl --vacuum-size=200M
 
-# 3f. Verify: nothing snap, nothing cloud, no iscsi/multipath/modem/avahi
+# 3e. Verify: nothing snap, nothing cloud, no iscsi/multipath/modem/avahi
 snap --version          # should fail: command not found
 systemctl list-unit-files --state=enabled --no-pager | wc -l   # baseline: ~33 services
 ```
@@ -424,8 +468,9 @@ the [🎮 NVIDIA](#-nvidia) section for the fix that's already applied.
 What runs, what each piece does, and every installed package by category.
 
 > [!NOTE]
-> 📊 **Snapshot 2026-08-04:** **961 packages** installed, **70 manually
-> installed**, **30 enabled services** — measured *after* the steps-3/5f purge.
+> 📊 **Snapshot 2026-08-06:** **967 packages** installed, **70 manually
+> installed**, **30 enabled services** — measured *after* the 2026-08-06 base
+> audit (see [🧹 Maintenance](#-maintenance--service-inventory)).
 
 ### 🗺️ The whole setup, one diagram
 
@@ -512,6 +557,7 @@ What runs, what each piece does, and every installed package by category.
 | `wl-clipboard` | (universe) | `wl-copy` / `wl-paste` clipboard tools |
 | `brightnessctl` | (universe) | screen brightness control |
 | `qml6-module-qtquick-layouts` | (universe) | QML `RowLayout` module used by the bar |
+| `gh` | (universe) | GitHub CLI — authenticated, part of the dev workflow (kept after the 2026-08-06 base audit) |
 
 **Fonts (needed by the bar, terminal, and apps)**
 
@@ -1501,7 +1547,7 @@ line** from the logs — it's usually a known issue.
 ## 🧹 Maintenance & Service Inventory
 
 What's running, what can be trimmed, and the routine care this system needs.
-Last audited: 2026-08-04.
+Last audited: 2026-08-06 (base audit + snapshot refresh, see [🔎 Base audit](#-base-audit-done-2026-08-06--start-clean-verification)).
 
 ### 🧽 One-time cleanup (done 2026-08-04)
 
@@ -1558,6 +1604,49 @@ du -sh ~/.cache
 > **Net effect of the cleanup:** ~200 MB + 46 packages freed; enabled services
 > went **60 → 43 → 30** (verified 2026-08-04, after the full steps-3/5f purge).
 
+### 🔎 Base audit (done 2026-08-06) — "start clean" verification
+
+Re-verified the whole base against the steps-3/5f purge lists and hunted for
+undocumented leftovers. Result: the base is clean — every documented purge
+applied, no snaps, no cloud-init, no failed units, no autoremove candidates.
+
+| Item | What it was | Status |
+|---|---|---|
+| `grim` | screenshot tool — **redundant** (niri has built-in `Print` screenshots; the README even listed grim as *not* installed) | ✅ **removed** |
+| `fastfetch` | system-info fetcher, never configured or invoked | ✅ **removed** |
+| `python3-fonttools` + `python3-ufolib2` | orphaned font tooling (self-contained pair, nothing depended on them) | ✅ **removed** |
+| python numeric stack | 31 auto-installed orphans of earlier purges: `python3-numpy` (+dev), `python3-sympy`/`mpmath`, `libblas3`/`liblapack3`, `libgfortran5`, `python3-pil`, `python3-lxml`/`bs4`, `isympy`, … — nothing depended on them | ✅ **autoremoved** |
+| `pollinate` config files (`rc` state) + `/etc/pollinate` | leftovers from step 3b (purged package, config remained) | ✅ **purged** |
+| `/etc/cloud` + `/var/lib/cloud` | leftover dirs — step 3b's `rm -rf` had not fully applied | ✅ **removed** |
+| apt cache + lists | 614 MB of `.deb` archives + 143 MB of lists | ✅ **cleaned** (56 KB now, lists refreshed) |
+| helium browser cache | 278 MB (`~/.cache/net.imput.helium`) | ✅ **cleared** |
+| `~/.cache/tracker3` | leftover from the purged `localsearch` indexer | ✅ **removed** |
+| `gh` (GitHub CLI) | authenticated dev tool — was installed but undocumented | ✅ **kept + documented** (package inventory) |
+
+**Second pass — the full inventory sweep:** every installed package was
+checked against the documented base + stack (via `apt-mark showmanual`,
+`apt-cache rdepends`, and the full `dpkg` list). **All 967 packages are
+accounted for** — every undocumented one is a legitimate dependency of a
+documented component (e.g. `screen` ← `ubuntu-release-upgrader-core`,
+`bpftrace`/`bpfcc-tools` ← `ubuntu-kernel-accessories`, `fuzzel` ← `niri`,
+`colord` ← the GTK portal chain, `packagekit`/`appstream` ←
+`software-properties-common` — needed for the PPA; daemon is inactive).
+
+| Item | What it was | Status |
+|---|---|---|
+| 8 dead package entries (`rc` state) | config files of long-removed packages: old kernel `7.0.0-14` (image/modules/zfs), the `nvidia-*-595-server` driver swap leftovers, `grub-pc` (we're UEFI) | ✅ **purged** — dpkg database now 0 `rc` entries |
+| `/etc/multipath` | leftover config dir from the purged `multipath-tools` | ✅ **removed** |
+| `~/.config/dconf` · `evolution` · `goa-1.0` · `nautilus` · `pulse` | GNOME/pulseaudio user-config leftovers (pulse was purged with audio) | ✅ **removed** |
+| **snap reinstall risk** | nothing prevents `apt` from pulling `snapd` back as a dep | ✅ **pinned** — `/etc/apt/preferences.d/no-snap.pref` (`Pin-Priority: -10`); `apt-cache policy snapd` → candidate `(none)` |
+
+> [!NOTE]
+> **Net effect of the audit:** ~1.2 GB freed (packages + caches + dirs) and
+> **31 packages + 8 dead entries** removed; enabled services unchanged at
+> **30**; snapshot refreshed 961 → **967 packages** (70 manual, 0 `rc`).
+> `grim` removal also makes the "not installed" table in
+> [🧩 Software stack](#-software-stack--package-inventory) true again —
+> screenshots are purely niri's.
+
 ### ⚙️ Service inventory (enabled, system — 30 currently)
 
 **✅ Enabled now:** `NetworkManager` (+dispatcher/wait-online) · `chrony` ·
@@ -1589,7 +1678,6 @@ installed)
 | `~/.config/ghostty/config` | terminal: theme, font, opacity |
 | `~/.config/quickshell/shell.qml` + `Bar.qml` | the status bar |
 | `~/.config/opencode/opencode.jsonc` | opencode config (currently minimal) |
-| `~/.config/dconf`, `goa-1.0`, `evolution` | GNOME leftovers, unused in niri |
 | `~/.local/share/keyrings` | login keyring (used by libsecret) |
 | `~/.ssh/authorized_keys` | SSH keys (password login already off) |
 | `~/.npm` | npm cache (86 MB, cleaned) |
@@ -1621,7 +1709,7 @@ systemctl --user status niri  # compositor health
 ```
 
 > [!NOTE]
-> **What each command watches over:** `nala` keeps the ~961 packages patched,
+> **What each command watches over:** `nala` keeps the ~967 packages patched,
 > `journalctl` bounds disk, `nvidia-smi` catches the VRAM quirk, and `niri`
 > status confirms the compositor survived the upgrade. None of these take more
 > than a minute.
@@ -1640,22 +1728,29 @@ This machine's state is reproducible from the commands in this document.
 
 ### 📦 The baseline (fresh Ubuntu Server Minimal)
 
-The baseline is defined by the `ubuntu-server-minimal` metapackage (27 direct
-deps):
+The baseline is defined by the `ubuntu-server-minimal` metapackage — **27
+direct dependencies** (verified against `apt-cache depends ubuntu-server-minimal`
+on the current interim release):
 
 ```
 apparmor          apt            bcache-tools     btrfs-progs
-chrony            cloud-init     cryptsetup       dbus
-e2fsprogs         lvm2           mdadm            multipath-tools
-netbase           open-iscsi     pollinate        snapd
+apport            chrony         cloud-init       cryptsetup
+dbus              e2fsprogs      lvm2             mdadm
+multipath-tools   netbase        open-iscsi       snapd
 sudo / sudo-rs    systemd        systemd-resolved systemd-sysv
 ubuntu-drivers-common           ubuntu-release-upgrader-core
 udev              unminimize     xfsprogs
 ```
 
+Plus its **Recommends** (installed alongside): `hwctl` · `kdump-tools` ·
+`needrestart` · `unattended-upgrades`.
+
 Of these, **step 3 of [📥 Installation](#-installation) purges** the Canonical
-extras: `cloud-init`, `snapd`, `pollinate`, `open-iscsi`, `multipath-tools`,
-`unminimize` — leaving only the essentials.
+extras and server leftovers: `cloud-init`, `snapd`, `apport`, `unminimize`,
+`open-iscsi`, `multipath-tools` + `kdump-tools` (a Recommends) — plus the
+installer-layer leftovers `modemmanager`, `avahi-daemon`, `udisks2`,
+`networkd-dispatcher` — leaving only the essentials (the full keep/remove
+inventory is in [step 2](#2️⃣-what-the-minimal-install-comes-with--the-full-inventory)).
 
 Plus the installer's base layer: `linux-generic` kernel, `grub-efi-amd64` +
 `shim-signed` (Secure Boot), `locales`, `nano`, `unattended-upgrades`,
@@ -1744,8 +1839,9 @@ NVIDIA → network).
 
 ### 🗃️ Reference snapshots
 
-Current machine state (snapshot 2026-08-04): **961 packages** installed,
-**70 manually installed**, **30 enabled services**. Regenerate these lists
+Current machine state (snapshot 2026-08-06): **967 packages** installed,
+**70 manually installed**, **30 enabled services** — measured *after* the
+2026-08-06 base audit. Regenerate these lists
 anytime with:
 
 ```bash
@@ -1771,7 +1867,7 @@ systemctl list-unit-files --type=service --state=enabled --no-pager | \
 
 **"Why not just install Ubuntu Desktop?"** Because it ships a GNOME desktop,
 snaps, and hundreds of packages we'd never use. This setup starts from the
-*minimized server* base and adds only what we need — **~961 packages** vs. a
+*minimized server* base and adds only what we need — **~967 packages** vs. a
 stock desktop's several thousand, and **~2 processes at idle** instead of a
 dozen.
 
