@@ -257,7 +257,7 @@ sudo apt install -y --no-install-recommends \
   kde-spectacle kinfocenter
 
 # Terminal + clipboard + launcher
-sudo apt install -y ghostty wl-clipboard
+sudo apt install -y konsole wl-clipboard
 
 # Audio (pipewire + plasma-pa volume control)
 sudo apt install -y pipewire pipewire-pulse wireplumber
@@ -293,8 +293,9 @@ No kwin-x11 — **Wayland only**, no X session.
 > **unavoidable hard-dependency** of the NVIDIA driver (`nvidia-driver-595` →
 > `xserver-xorg-video-nvidia-595` → `xserver-xorg-core`). It never runs (no
 > `Xorg` process, ever). `Xwayland` also ships and runs **rootless** as KWin's
-> default for legacy X11 apps — kept by choice; nothing X11 is running on it
-> (helium/ghostty are Wayland-native).
+> default for legacy apps — kept by choice; only KDE's own tray bridges
+> (`xembedsniproxy`, `gmenudbusmenupr`) run on it, no user apps
+> (helium/konsole are Wayland-native).
 
 > [!NOTE]
 > **`udisks2` returns as a hard dep of `plasma-workspace`** (removable-media
@@ -325,8 +326,8 @@ sudo apt install -y --no-install-recommends dolphin konsole
 balooctl6 disable   # dolphin's hard dep baloo6 — keep zero background indexing
 ```
 
-`dolphin` = the file manager (`Meta+E`); `konsole` = second terminal
-(`Ctrl+Alt+T`). Ghostty stays the default terminal.
+`dolphin` = the file manager (`Meta+E`); `konsole` = the terminal
+(`Meta+Return`, second via `Ctrl+Alt+T`).
 
 ---
 
@@ -355,7 +356,7 @@ sudo update-grub
 | `~/.config/kglobalshortcutsrc` | key bindings — **in repo** |
 | `~/.config/kdeglobals` | colors, fonts, icons — **in repo** |
 | `~/.config/powermanagementprofilesrc` | power/backlight behavior — **in repo** |
-| `~/.config/ghostty/config` | terminal — **in repo** (`home/.config/ghostty/config`) |
+| `~/.config/konsole/` + `~/.local/share/konsole/` | terminal (stock defaults; nothing to track yet) |
 
 > [!NOTE]
 > **All configs are tracked in this repo** (`home/` mirrors `~`). They are
@@ -427,9 +428,16 @@ sudo apt-get remove --purge -y alacritty cargo rustc pkg-config \
   liblz4-dev libwayland-dev wayland-protocols
 sudo apt-get autoremove --purge -y
 
-# 9i. The two KDE apps (2026-08-06): file manager + second terminal
+# 9i. The two KDE apps (2026-08-06): file manager + terminal
 sudo apt install -y --no-install-recommends dolphin konsole
 balooctl6 disable   # dolphin's hard dep baloo6 — keep zero background indexing
+
+# 9j. Refine cleanup (2026-08-06): ghostty out, konsole stays the terminal
+sudo apt-get remove --purge -y ghostty
+sudo apt-get autoremove --purge -y
+rm -rf ~/.config/ghostty ~/.cargo ~/.config/pandora ~/.config/xsettingsd \
+  ~/.config/niri ~/.config/quickshell ~/docs   # stale niri-era leftovers
+rm -f ~/core.* ~/.config/kded5rc
 
 sudo reboot
 ```
@@ -451,14 +459,14 @@ A **hybrid-graphics laptop** — TWO GPUs, and the desktop can use either one.
 | RAM | 14 GiB |
 | Storage | 500 GB NVMe (`nvme0n1`) + 238 GB NVMe (`nvme1n1`) |
 | Kernel | Linux 7.0.0-28-generic |
-| Displays | 🖥️ **eDP-2** (built-in BOE panel, 1920×1080 @ **120 Hz**) · 🖥️ **HDMI-A-1** (Sharp TV, 1920×1080 @ **60 Hz** — forced over its 50 Hz preferred mode) |
+| Displays | 🖥️ **eDP-1** (built-in BOE panel, 1920×1080 @ **120 Hz**) · 🖥️ **HDMI-A-4** (Sharp TV, 1920×1080 @ **60 Hz** — forced over its 50 Hz preferred mode) |
 
 ### 🖥️ Displays (configured in System Settings → Display / `kscreen-doctor`)
 
 | Output | Mode | Position | Notes |
 |---|---|---|---|
-| `eDP-2` (BOE panel) | `1920x1080@120.002` | primary | the main screen |
-| `HDMI-A-1` (Sharp TV) | `1920x1080@60.000` | right of panel | TV prefers 50 Hz; 60 Hz forced for a smoother desktop |
+| `eDP-1` (BOE panel) | `1920x1080@120.002` | primary | the main screen |
+| `HDMI-A-4` (Sharp TV) | `1920x1080@60.000` | right of panel | TV prefers 50 Hz; 60 Hz forced for a smoother desktop |
 
 Find your modes/positions anytime with `kscreen-doctor -o`.
 
@@ -477,7 +485,7 @@ Find your modes/positions anytime with `kscreen-doctor -o`.
 ### 🔀 How the graphics stack is wired (PRIME / hybrid)
 
 ```
-Applications (Ghostty, plasmashell, etc.)
+Applications (Konsole, plasmashell, etc.)
         │  Vulkan/OpenGL/EGL
         ▼
    KWin (compositor) ── renders with the NVIDIA GPU (via GBM/EGL)
@@ -502,11 +510,11 @@ Applications (Ghostty, plasmashell, etc.)
 What runs, what each piece does, and every installed package by category.
 
 > [!NOTE]
-> 📊 **Snapshot 2026-08-06:** **1,444 packages** installed,
-> **87 manually installed**, **28 enabled services** — measured *after* the
+> 📊 **Snapshot 2026-08-06:** **1,440 packages** installed,
+> **86 manually installed**, **28 enabled services** — measured *after* the
 > niri→Plasma migration, the base audit, the 2026-08-06 cleanup (build
-> toolchain + alacritty purged), and the dolphin/konsole add (see
-> [🧹 Maintenance](#-maintenance--service-inventory)).
+> toolchain + alacritty purged), the dolphin/konsole add, and the ghostty
+> removal + apt autoremove (see [🧹 Maintenance](#-maintenance--service-inventory)).
 
 ### 🗺️ The whole setup, one diagram
 
@@ -515,7 +523,7 @@ What runs, what each piece does, and every installed package by category.
 │  PLASMA DESKTOP (user-visible)                                │
 │                                                               │
 │  ┌───────────────────────────────┐  ┌────────────┐  ┌───────┐ │
-│  │  plasmashell (1 process)      │  │  KRunner   │  │Ghostty│ │
+│  │  plasmashell (1 process)      │  │  KRunner   │  │Konsole│ │
 │  │  panels + widgets:            │  │  launcher  │  │terminal│ │
 │  │  · top panel: apps · clock    │  │  (Meta)    │  └───────┘ │
 │  │  · bottom panel: taskbar,     │  │            │            │
@@ -547,7 +555,7 @@ What runs, what each piece does, and every installed package by category.
 | **Screenshots** | **KDE Spectacle** | Plasma's native tool; `Print` family |
 | **Status bar / tray** | plasmashell panels | native network (plasma-nm), audio (plasma-pa), power (powerdevil) applets |
 | **Browser** | **Helium** (`helium-bin`, .deb repo) | Chromium fork with Chrome-extension support; real .deb, no snap |
-| **Terminal** | **Ghostty** | native Wayland, GPU-accelerated; konsole available as second (`Ctrl+Alt+T`) |
+| **Terminal** | **Konsole** | KDE Plasma default, Wayland native |
 | **File manager** | **Dolphin** | added 2026-08-06 (`Meta+E`); uses the dormant `udisks2` for mounting |
 | **Clipboard** | Plasma clipboard + **wl-clipboard** | both installed; plasma's clipboard has history |
 | **Backlight keys** | **powerdevil** | Plasma's power management handles brightness natively |
@@ -559,12 +567,12 @@ What runs, what each piece does, and every installed package by category.
 
 | Not installed | Why we skip it |
 |---|---|
-| Rest of the KDE app suite (`kde-baseapps`: kate, gwenview, ark, elisa, …) | Plasma is the desktop, not an app bundle — ghostty/helium cover the needs |
+| Rest of the KDE app suite (`kde-baseapps`: kate, gwenview, ark, elisa, …) | Plasma is the desktop, not an app bundle — konsole/helium cover the needs |
 | `plasma-discover` | GUI app store — we use `nala` |
 | `baloo` indexer daemon | **installed as a dolphin hard-dep, but disabled** (`balooctl6 disable`) — zero background indexing, same stance that removed tracker/localsearch |
 | `kwin-x11` | **not installed** — the X11 compositor is gone; KWin runs Wayland only |
 | `xserver-xorg-core` | present **as the NVIDIA driver's hard-dep** (`xserver-xorg-video-nvidia-595`); never runs, no X session |
-| `Xwayland` | runs **rootless** (KWin default) for legacy X11 apps — no X11 apps run on it today |
+| `Xwayland` | runs **rootless** (KWin default) — only KDE's tray bridges (`xembedsniproxy`, `gmenudbusmenupr`) use it; all user apps are Wayland-native |
 | Full X session / X11 apps | pure Wayland provides everything we need |
 | Snaps, cloud-init, apport, GNOME leftovers | the base rules from step 3 — untouched by the migration |
 | `waybar`, `mako`, `swaybg`, `swaylock`, `grim`, `slurp`, `fuzzel` | Plasma provides equivalents (panel, notifications, wallpaper, lock, screenshots, krunner) |
@@ -596,8 +604,7 @@ What runs, what each piece does, and every installed package by category.
 
 | Package | Purpose |
 |---|---|
-| `ghostty` | terminal emulator (default) |
-| `konsole` | second terminal (`Ctrl+Alt+T`) — added 2026-08-06 |
+| `konsole` | terminal emulator (default) |
 | `dolphin` | file manager (`Meta+E`) — added 2026-08-06 |
 | `helium-bin` | the browser (real .deb) |
 | `wl-clipboard` | `wl-copy` / `wl-paste` |
@@ -624,19 +631,21 @@ niri/quickshell — `cargo` · `rustc` · `pkg-config` (re-pulled as an
 | Process | Count | What it is |
 |---|---|---|
 | `kwin_wayland` (+ wrapper) | 2 | the compositor |
-| `Xwayland` | 1 | rootless X server, KWin default — no X11 apps run on it |
+| `Xwayland` + tray bridges (`xembedsniproxy`, `gmenudbusmenupr`) | 3 | rootless X server, KWin default — only KDE's legacy-tray bridges run on it |
 | `plasmashell` | 1 | the whole UI (panels + widgets + tray) |
 | `kded6` + `kactivitymanagerd` | 2 | Plasma service daemons |
 | `polkit-kde-authentication-agent-1` | 1 | privilege prompts |
 | `powerdevil` | 1 | power management |
 | `xdg-desktop-portal*` (kde + document + permission) | 2-3 | portals |
 | `pipewire` + `pipewire-pulse` + `wireplumber` | 3 | audio |
-| **total** | **~13-14** | session processes, browser closed (systemd on top) |
+| **total** | **~30** | session processes with the browser closed (systemd on top); ~75 with Helium + its crashpad open |
 
-That's the honest cost of a full desktop: **~13-14 session processes at idle**
-(including the rootless Xwayland KWin keeps for legacy apps), vs ~2 with the
-hand-rolled niri stack — in exchange for the complete, supported
-Plasma feature set (settings, widgets, lock screen, power, network, audio).
+That's the honest cost of a full desktop: **~30 session processes at idle**
+(including Plasma's own helper daemons — kwalletd6, ksecretd, gnome-keyring,
+at-spi a11y, dconf, the two Xwayland tray bridges, plus KWin's rootless
+Xwayland), vs ~2 with the hand-rolled niri stack — in exchange for the
+complete, supported Plasma feature set (settings, widgets, lock screen, power,
+network, audio).
 
 ---
 
@@ -657,7 +666,7 @@ manager, and the Wayland session.
 
 | Piece | File |
 |---|---|
-| SDDM config | `/etc/sddm.conf.d/` + `/etc/sddm.conf` |
+| SDDM config | `/etc/sddm.conf.d/10-plasma.conf` (breeze, Wayland, numlock) |
 | SDDM service | `sddm.service` (system) |
 | session files | `/usr/share/wayland-sessions/plasma.desktop` |
 | compositor config | `~/.config/kwinrc` |
@@ -697,7 +706,7 @@ applies via System Settings; key files:
 | `~/.config/plasma-org.kde.plasma.desktop-appletsrc` | panels + widgets layout |
 | `~/.config/plasmashellrc` | shell behavior |
 | `~/.config/powermanagementprofilesrc` | power profiles |
-| `~/.config/sddm.conf.d/` | login screen settings |
+| `/etc/sddm.conf.d/` | login screen settings (system config, not user) |
 
 ### 🖼️ Panels & widgets (the "bar")
 
@@ -735,9 +744,9 @@ Autostart apps: System Settings → Autostart (adds entries to `~/.config/autost
 | Keys | Action |
 |---|---|
 | `Meta` (or `Alt+F2`) | KRunner launcher |
-| `Meta+Return` | Ghostty (terminal) |
+| `Meta+Return` | Konsole (terminal) |
 | `Print` / `Shift+Print` / `Alt+Print` | Spectacle screenshots (area / screen / window) |
-| `Ctrl+Alt+T` | konsole (second terminal — added 2026-08-06) |
+| `Ctrl+Alt+T` | another terminal window |
 | `Meta+E` | dolphin file manager (added 2026-08-06) |
 | `Ctrl+Esc` | system activity |
 
@@ -938,7 +947,7 @@ This works **without any X11 config** — KWin handles multi-GPU natively.
 | 📦 Package manager | [nala](https://gitlab.com/volian/nala) — pretty apt frontend |
 | 🪟 Desktop | [KDE Plasma 6](https://kde.org/plasma-desktop/) — full core, Wayland only |
 | 🪟 Compositor | [KWin](https://invent.kde.org/plasma/kwin) (`kwin_wayland`, Plasma 6.6.6) |
-| 💻 Terminal Emulator | [Ghostty](https://ghostty.org/) (native Wayland, GPU-accelerated) |
+| 💻 Terminal Emulator | [Konsole](https://konsole.kde.org/) (KDE Plasma default, Wayland-native) |
 | 🚀 Applications launcher | [KRunner](https://kde.org/plasma-desktop/) (Meta) — Plasma's built-in |
 | 🧱 Shell / Bar | [plasmashell](https://kde.org/plasma-desktop/) — panels + widgets |
 | 🌍 Browser | [Helium](https://github.com/imputnet/helium-linux) (Chromium fork, real .deb) |
@@ -991,7 +1000,7 @@ This works **without any X11 config** — KWin handles multi-GPU natively.
 |---|---|
 | 💤 **Suspend/resume** can glitch on this dual-GPU laptop | a reboot usually clears it |
 | 🎮 **NVIDIA VRAM heap quirk** (~1 GiB hoarded by compositors) | fixed by the application-profile JSON in [🎮 NVIDIA](#-nvidia); the profile must match `kwin_wayland` |
-| 🐧 Some **X11 apps** may misbehave | they run under the rootless Xwayland (KWin default) automatically; native-Wayland apps (helium, ghostty) are unaffected |
+| 🐧 Some **X11 apps** may misbehave | they run under the rootless Xwayland (KWin default) automatically; native-Wayland apps (helium, konsole) are unaffected |
 | 🔎 `baloo` indexer (dolphin's hard dep) | **disabled** — `balooctl6 disable`; re-enable anytime with `balooctl6 enable` |
 
 ### 🔬 Checking the whole stack at once
@@ -1061,8 +1070,9 @@ existence (`Pin-Priority: -10`; `apt-cache policy snapd` → candidate `(none)`)
 > [!NOTE]
 > **Net effect of the migration:** niri-era stack gone, Plasma core in.
 > Packages 967 → **1,445** → **1,430** (2026-08-06 cleanup: build toolchain +
-> alacritty) → **1,444** (+dolphin/konsole), manual 70 → **92** → **85** →
-> **87**, enabled services 27 → **28** (only `sddm` added; `udisks2` disabled
+> alacritty) → **1,444** (+dolphin/konsole) → **1,440** (ghostty removed + apt
+> autoremove), manual 70 → **92** → **85** → **87** → **86**, enabled services
+> 27 → **28** (only `sddm` added; `udisks2` disabled
 > again), 0 `rc` entries, no snaps, no Canonical junk — the base rules
 > survived intact.
 
@@ -1071,7 +1081,8 @@ existence (`Pin-Priority: -10`; `apt-cache policy snapd` → candidate `(none)`)
 **✅ Enabled now:** `NetworkManager` (+dispatcher/wait-online) · `chrony` ·
 `systemd-resolved` · `systemd-networkd` (+wait-online, netplan-configure) ·
 `apparmor` · `unattended-upgrades` · `thermald` · `gpu-manager` ·
-`nvidia-suspend/resume/hibernate/powerd` (hybrid graphics) · `wpa_supplicant` ·
+`nvidia-powerd` (power management; suspend/resume/hibernate units ship but are
+**not enabled**) · `wpa_supplicant` ·
 `accounts-daemon` · `lvm2-monitor` · `blk-availability` · `console-setup` ·
 `keyboard-setup` · `setvtrgb` · `e2scrub_reap` · `finalrd` · `grub2-common` ·
 `grub-initrd-fallback` · `secureboot-db` · `systemd-pstore` · `getty@` · **`sddm`**
@@ -1105,7 +1116,7 @@ existence (`Pin-Priority: -10`; `apt-cache policy snapd` → candidate `(none)`)
 | `~/.config/kglobalshortcutsrc` | key bindings — **in repo** |
 | `~/.config/kdeglobals` | colors, fonts, icons — **in repo** |
 | `~/.config/powermanagementprofilesrc` | power/backlight — **in repo** |
-| `~/.config/ghostty/config` | terminal: theme, font, opacity — **in repo** |
+| `~/.config/konsole/` + `~/.local/share/konsole/` | terminal (stock defaults, not tracked) |
 | `~/.config/opencode/opencode.jsonc` | opencode config (currently minimal) |
 | `~/.local/share/keyrings` | login keyring (used by libsecret) |
 | `~/.ssh/authorized_keys` | SSH keys (password login already off) |
@@ -1135,7 +1146,7 @@ pgrep -a kwin_wayland         # compositor health
 ```
 
 > [!NOTE]
-> **What each command watches over:** `nala` keeps the ~1,444 packages patched,
+> **What each command watches over:** `nala` keeps the ~1,440 packages patched,
 > `journalctl` bounds disk, `nvidia-smi` catches the VRAM quirk, and the
 > kwin_wayland process confirms the desktop survived the upgrade. None of
 > these take more than a minute.
@@ -1196,7 +1207,7 @@ authoritative, in-order command list:
 # Step 1-2: install Ubuntu Server "Minimized" from the ISO, verify it boots
 # Step 3:   strip to a pure base (purge snaps, cloud-init, leftovers)
 # Step 4:   switch to the interim cadence (Prompt=normal + do-release-upgrade)
-# Step 5:   repos + every package (plasma-desktop core, ghostty, nvidia, fonts, …)
+# Step 5:   repos + every package (plasma-desktop core, konsole, nvidia, fonts, …)
 # Step 6:   NVIDIA kernel cmdline + VRAM fix + groups
 # Step 7:   copy the configs from this repo into ~/.config/
 # Step 8:   reboot → SDDM → Plasma (Wayland)
@@ -1210,7 +1221,7 @@ sudo apt-get remove -y --purge plasma-desktop plasma-session-wayland kwin-waylan
   kde-cli-tools powerdevil plasma-nm plasma-pa ksshaskpass polkit-kde-agent-1 \
   breeze breeze-gtk-theme xdg-desktop-portal-kde kde-config-gtk-style \
   kde-config-screenlocker kactivitymanagerd kmenuedit kde-spectacle kinfocenter \
-  ghostty helium-bin wl-clipboard pipewire pipewire-pulse wireplumber \
+  helium-bin wl-clipboard pipewire pipewire-pulse wireplumber \
   dolphin konsole
 balooctl6 disable   # (after dolphin purge, baloo6 is a plain unused lib)
 sudo apt-get purge --dry-run nvidia-driver-595   # review, then drop --dry-run
@@ -1229,14 +1240,14 @@ sudo apt-get update && sudo apt-get autoremove --purge -y
 |---|---|
 | `linux-generic` kernel, GRUB/EFI, Secure Boot | installer-level — never fiddled with |
 | `~/.ssh/authorized_keys` + `.bashrc` PATH line | personal access + your env stays intact |
-| Home data (`~/docs`, `~/Pictures`, …) | reset only touches system state |
+| Home data (`~/Pictures`, etc.) | reset only touches system state |
 | Plasma configs (`~/.config/kwinrc`, `plasma-*`, …) | delete manually if you want factory defaults |
 
 ### 🗃️ Reference snapshots
 
 Current machine state (snapshot 2026-08-06, after migration + cleanup +
-dolphin/konsole): **1,444 packages** installed, **87 manually installed**,
-**28 enabled services**. Regenerate these lists anytime with:
+dolphin/konsole + ghostty removal): **1,440 packages** installed, **86 manually
+installed**, **28 enabled services**. Regenerate these lists anytime with:
 
 ```bash
 apt-mark showmanual | sort > /tmp/manual-packages-current.txt
@@ -1265,13 +1276,14 @@ management, network/audio applets, settings) was hand-built or missing. Plasma
 6 gives the *complete* desktop — widgets, settings, lock, power, tray,
 screenshots — as one supported, pure-Wayland unit. The lean rules still apply:
 no indexers, no snaps, no app bundle — **except** dolphin (file manager) and
-konsole (second terminal), added 2026-08-06. Cost: ~13-14 idle session
-processes (incl. KWin's rootless Xwayland) and ~480 more packages (Qt6 + KF6).
+konsole (terminal), adopted 2026-08-06. Cost: ~30 idle session
+processes (incl. KWin's rootless Xwayland + its tray bridges) and ~480 more
+packages (Qt6 + KF6).
 Details in [step 9](#9️⃣-the-niri--plasma-migration-done-2026-08-06).
 
 **"Why not just install Ubuntu Desktop?"** It ships GNOME, snaps, and hundreds
 of packages we'd never use. This setup starts from the *minimized server* base
-and adds only what we need — **1,444 packages** vs. a stock desktop's several
+and adds only what we need — **1,440 packages** vs. a stock desktop's several
 thousand.
 
 **"Why interim instead of LTS?"** LTS releases stay on old software for 5+
@@ -1305,8 +1317,8 @@ section has the exact reset commands.
 | 🪟 **Desktop** | KDE Plasma 6 — full core, **Wayland only**, exactly two KDE apps (dolphin + konsole) |
 | 🧱 **Shell** | plasmashell — panels + widgets + tray (native) |
 | 🚀 **Launcher** | KRunner (Meta) |
-| 💻 **Terminal** | Ghostty (native Wayland) + konsole |
+| 💻 **Terminal** | Konsole (KDE Plasma default) |
 | 🌍 **Browser** | Helium — Chromium fork, real `.deb`, no snap |
 | 🔑 **Login** | SDDM (breeze) |
-| 🖥️ **Display stack** | Wayland only (no X session); rootless Xwayland for legacy apps — nothing X11 runs on it |
+| 🖥️ **Display stack** | Wayland only (no X session); rootless Xwayland carries only KDE's tray bridges — user apps are Wayland-native |
 | 🎯 **Policy** | only necessary packages; no indexers, no snaps, no KDE app bundle — except dolphin + konsole |
