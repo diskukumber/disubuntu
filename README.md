@@ -326,6 +326,7 @@ sudo update-grub
 
 | File | What it is |
 |---|---|
+| `~/.bash_aliases` | **in this repo** (`home/.bash_aliases`) — nala aliases, trailing-space `sudo` |
 | `~/.config/kwinrc` | compositor settings (effects, animations, window rules) |
 | `~/.config/plasma-org.kde.plasma.desktop-appletsrc` | panel layout + widgets |
 | `~/.config/plasmashellrc` | shell settings |
@@ -334,8 +335,12 @@ sudo update-grub
 | `~/.config/powermanagementprofilesrc` | power/backlight behavior |
 | `~/.config/ghostty/config` | terminal |
 
-These live in the `disubuntu` repo (`dotfiles/`) and are symlinked into
-`~/.config/` — edit once, sync with `git push`.
+> [!NOTE]
+> **Tracked in this repo right now:** only `home/.bash_aliases` (a plain copy
+> synced manually). The Plasma configs above live on the machine only — the
+> panel layout, theme, and shortcuts are the open items in
+> [🚧 Work In Progress](#-work-in-progress); back them up by copying the files
+> into the repo once finalized.
 
 ---
 
