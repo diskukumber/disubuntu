@@ -1,18 +1,19 @@
 # 🐧 disubuntu · Ubuntu interim
 
-An **Ubuntu interim-based setup, lean by design** — a pure-Wayland desktop that
-runs on **~2 processes** and gets refreshed on the **6-month interim release
-cadence**.
+An **Ubuntu interim-based setup, lean by design** — a pure-Wayland desktop on
+**KDE Plasma 6** (minimal, full-functional core: no KDE apps, no indexers, no
+snaps) that gets refreshed on the **6-month interim release cadence**.
 
 | Summary | |
 |---|---|
 | 🖥️ **OS** | Ubuntu interim (non-LTS, 6-month cadence) — Server *minimized* base |
-| 🪟 **Compositor** | [niri](https://niri-wm.github.io/niri/) (scrollable tiling, pure Wayland) |
-| 🧱 **Shell** | hand-written [quickshell](https://quickshell.org/) bar (~990 lines) |
+| 🪟 **Desktop** | [KDE Plasma 6](https://kde.org/plasma-desktop/) — **Wayland only** (`kwin_wayland`), full core: widgets, panels, settings — zero extra KDE apps |
+| 🔑 **Login** | [SDDM](https://github.com/sddm/sddm) (breeze theme) — native Plasma display manager |
 | 🎨 **GPU** | Intel UHD (iGPU, panel) + NVIDIA RTX 2060 (dGPU, renders) |
 
 > [!IMPORTANT]
 > 🚧 **Still under development** — this documentation is updated as the setup develops.
+> The niri→Plasma migration is documented in [step 9](#9️⃣-the-niri--plasma-migration-done-2026-08-06).
 
 ---
 
@@ -21,42 +22,34 @@ cadence**.
 | Section | Covers |
 |---|---|
 | [📸 Screenshots](#-screenshots) | how screenshots are taken & where they land |
-| [📥 Installation](#-installation) | the full path: get the minimized server ISO → strip to a pure base → switch to the interim cadence → add every package, in order |
+| [📥 Installation](#-installation) | the full path: minimized server ISO → strip to a pure base → interim cadence → every package, in order |
 | [🖥️ Hardware](#-hardware) | the machine: CPU, RAM, storage, dual-GPU hybrid graphics |
 | [🧩 Software stack & package inventory](#-software-stack--package-inventory) | the diagram, who does what, every package, process count |
-| [🚀 Session Startup](#-session-startup) | greetd → niri → quickshell boot chain |
-| [🎛️ niri Configuration](#-niri-configuration) | config.kdl explained section by section |
-| [🧱 The Quickshell Bar](#-the-quickshell-bar) | the hand-written bar: files, IPC, patterns, launcher |
-| [⌨️ Key Bindings](#-key-bindings) | the full cheat sheet |
+| [🚀 Session Startup](#-session-startup) | SDDM → Plasma (Wayland) boot chain |
+| [🎛️ KWin & Plasma Configuration](#-kwin--plasma-configuration) | kwinrc, panels, shortcuts — section by section |
+| [⌨️ Key Bindings](#-key-bindings) | the KDE default + custom cheat sheet |
 | [🎮 NVIDIA](#-nvidia) | driver, modeset, VRAM fix, groups, diagnostics |
 | [🚧 Work In Progress](#-work-in-progress) | what's done, what's open, the 6-month release plan |
 | [📦 Packages & Details](#-packages--details) | the one-glance component table |
 | [🛠️ Troubleshooting & Known Issues](#-troubleshooting--known-issues) | symptom→fix table, logs, recovery recipes |
 | [🧹 Maintenance & Service Inventory](#-maintenance--service-inventory) | cleanup, services, dotfiles, routine care |
 | [📜 Provisioning & Baseline](#-provisioning--baseline) | fresh-install baseline, install/reset commands |
-| [❓ FAQ](#-faq) | quick answers: why interim, why hand-written bar, how to update/reset |
+| [❓ FAQ](#-faq) | quick answers: why Plasma, why interim, how to update/reset |
 | [ℹ️ Quick facts](#-quick-facts) | TL;DR summary |
 
 ---
 
 ## 📸 Screenshots
 
-Screenshots are **built into niri** — no extra tool needed. They land in
-`~/Pictures/Screenshots/` and are added here as you go:
+Screenshots use **KDE Spectacle** (small, native Wayland — no grim/slurp):
 
 | Keys | What it captures |
 |---|---|
-| `Print` | area (drag to select) |
-| `Ctrl+Print` | entire screen |
+| `Print` | interactive: area / screen / window picker |
+| `Shift+Print` | full screen (immediate) |
 | `Alt+Print` | focused window |
 
-```
-docs/system/screenshots/<name>.png
-```
-
-> [!NOTE]
-> **Screenshot target** is set by `screenshot-path` in the niri config
-> (`~/.config/niri/config.kdl`, [misc section](#-niri-configuration)).
+Saved to `~/Pictures/Screenshots/` (configurable in Spectacle settings).
 
 ---
 
@@ -88,12 +81,6 @@ docs/system/screenshots/<name>.png
    **Ubuntu Server** → then tick **"Minimized"**.
 3. Finish the install, reboot, and verify the machine comes up (SSH or TTY).
 
-> [!NOTE]
-> The "Minimized" profile installs the `ubuntu-server-minimal` metapackage —
-> 27 direct dependencies + 4 Recommends (kernel, systemd, apt, coreutils…
-> plus the Canonical/server extras). The complete keep/remove inventory is in
-> [step 2](#2️⃣-what-the-minimal-install-comes-with--the-full-inventory).
-
 ---
 
 ### 2️⃣ What the minimal install comes with — the full inventory
@@ -112,14 +99,10 @@ purges in step 3.
 > [!NOTE]
 > **What "Canonical extras" / "snap" means:** things Canonical ships for
 > cloud/enterprise/telemetry that a personal laptop never uses — `snapd` (the
-> snap packaging framework: containerized bundles, 7 daemons, loop mounts),
-> `cloud-init` (cloud provisioning), `apport` (crash reporting), `pollinate`
-> (entropy seeding). None serve a bare-metal workstation. Purging them leaves
-> a base that is only systemd + coreutils + apt — every daemon after that is
-> one *we* chose.
->
-> Inventory verified against `apt-cache depends ubuntu-server-minimal`
-> (1.570.2, current interim release).
+> snap packaging framework), `cloud-init` (cloud provisioning), `apport`
+> (crash reporting), `pollinate` (entropy seeding). None serve a bare-metal
+> workstation. Purging them leaves a base that is only systemd + coreutils +
+> apt — every daemon after that is one *we* chose.
 
 **🧱 Boot & storage stack — keep forever:**
 
@@ -142,22 +125,22 @@ purges in step 3.
 | `netbase` · `e2fsprogs` · `xfsprogs` · `btrfs-progs` · `bcache-tools` | network + filesystem base | ✅ keep |
 | `locales` · `nano` · util-linux/coreutils set | base userland | ✅ keep |
 | `openssh-server` | headless access | ✅ keep (remove only if you never SSH in) |
-| `hwctl` · `needrestart` · `unattended-upgrades` | hardware probing · restart reminders · auto security updates (metapackage Recommends) | ✅ keep |
+| `hwctl` · `needrestart` · `unattended-upgrades` | hardware probing · restart reminders · auto security updates | ✅ keep |
 | `ubuntu-drivers-common` (+ `gpu-manager`) | GPU driver handling + detection | ✅ keep |
 | `ubuntu-release-upgrader-core` | the distro upgrader — **required for step 4** (interim cadence) | ✅ keep |
 
-**🔴 Canonical extras — purge (step 3b):**
+**🔴 Canonical extras — purge (step 3):**
 
 | Package | What it is | Why remove |
 |---|---|---|
 | `snapd` (+ `snapd.socket`) | the snap packaging framework | 7 daemons for 0 snaps |
 | `cloud-init` | cloud provisioning | unused on bare metal (5 services) |
 | `apport` (+ `apport-core-dump-handler`, `apport-symptoms`) | crash reporting | useless on a personal machine |
-| `kdump-tools` | kernel crash dumps (metapackage Recommends) | a laptop never crash-dumps to disk |
-| `pollinate` | Canonical entropy seeding | cloud-image feature (may already be absent on newer releases — harmless no-op) |
-| `unminimize` | reverses the minimized image (reinstalls docs/manpages) | we want to *stay* minimal |
+| `kdump-tools` | kernel crash dumps | a laptop never crash-dumps to disk |
+| `pollinate` | Canonical entropy seeding | cloud-image feature (may already be absent — harmless no-op) |
+| `unminimize` | reverses the minimized image | we want to *stay* minimal |
 
-**🔴 Server-image leftovers — purge (step 3c):**
+**🔴 Server-image leftovers — purge (step 3):**
 
 | Package | What it is | Why remove |
 |---|---|---|
@@ -166,7 +149,7 @@ purges in step 3.
 | `modemmanager` | mobile-broadband modem daemon | no SIM slot |
 | `lxd-installer` | LXD container wrapper | no containers |
 | `avahi-daemon` | mDNS/Bonjour | nothing here uses it |
-| `udisks2` | storage D-Bus daemon | no file manager needs it |
+| `udisks2` | storage D-Bus daemon | no file manager needs it (note: *Plasma pulls it back — see step 5c note*) |
 | `networkd-dispatcher` | systemd-networkd event handler | we use NetworkManager, not networkd |
 
 **🟡 Optional — your call (safe either way):**
@@ -174,12 +157,7 @@ purges in step 3.
 | Package | Note |
 |---|---|
 | `thermald` | Intel thermal daemon — useful on a laptop, tiny; keep unless you want zero daemons |
-| `accountsservice` | user-account D-Bus — greetd/agreety works without it |
-
-> [!NOTE]
-> `nautilus`, `gvfs*` and `xdg-desktop-portal-gnome` are **not** in the base —
-> they sneak in later as dependencies of niri's portal recommendations. They're
-> removed in step 5f, after the stack install.
+| `accountsservice` | user-account D-Bus — Plasma uses it; keep |
 
 ---
 
@@ -206,7 +184,7 @@ sudo apt-get purge -y cloud-init pollinate unminimize \
   apport apport-core-dump-handler apport-symptoms kdump-tools
 sudo rm -rf /etc/cloud /var/lib/cloud
 
-# 3c. Server-image leftovers — SAN/multipath/modem/containers/networkd/mDNS/storage
+# 3c. Server-image leftovers
 sudo apt-get purge -y open-iscsi multipath-tools modemmanager lxd-installer \
   avahi-daemon udisks2 networkd-dispatcher
 
@@ -214,14 +192,13 @@ sudo apt-get purge -y open-iscsi multipath-tools modemmanager lxd-installer \
 sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/* && sudo apt-get update
 sudo journalctl --vacuum-size=200M
 
-# 3e. Verify: nothing snap, nothing cloud, no iscsi/multipath/modem/avahi
+# 3e. Verify
 snap --version          # should fail: command not found
 systemctl list-unit-files --state=enabled --no-pager | wc -l   # baseline: ~33 services
 ```
 
 After this the machine is a **pure minimal system** — systemd, kernel,
-coreutils, apt. Everything else that runs later is something *we* added
-(see the service inventory in [🧹 Maintenance](#-maintenance--service-inventory)).
+coreutils, apt. Everything else that runs later is something *we* added.
 
 ---
 
@@ -233,37 +210,30 @@ The Ubuntu Server ISO installs an **LTS** by default. This setup runs the
 ```bash
 # 4a. Tell the upgrader to chase interim releases, not LTS-to-LTS
 sudo sed -i 's/^Prompt=.*/Prompt=normal/' /etc/update-manager/release-upgrades
-grep '^Prompt' /etc/update-manager/release-upgrades    # → Prompt=normal
 
-# 4b. Upgrade to the current interim release (26.10 & later: 27.04, …)
+# 4b. Upgrade to the current interim release
 sudo do-release-upgrade -d
 sudo reboot
 ```
 
 > [!NOTE]
-> `Prompt=normal` is the *interim* mode. The default `Prompt=lts` would keep
-> you on LTS forever — this is the single setting that defines the cadence.
-> `-d` is required when the target interim release is still in development;
-> drop it once it's released. Verify after reboot:
+> `Prompt=normal` is the *interim* mode. Verify after reboot:
 > `cat /etc/os-release | grep VERSION_CODENAME` and repeat
-> `do-release-upgrade` **every 6 months** (the cadence in
-> [🚧 Work In Progress](#-work-in-progress)).
+> `do-release-upgrade` **every 6 months**.
 
 ---
 
 ### 5️⃣ What we add — every package, with a reason
 
-**5a. Repositories** (order matters):
+**5a. Repositories:**
 
 | Source | Provides | When |
 |---|---|---|
 | Ubuntu main/universe | base + most tools | preconfigured |
-| `ppa:avengemedia/danklinux` | quickshell + niri (official Ubuntu packaging) | now |
 | `pkg.helium.computer/deb` | `helium-bin` browser (real .deb, no snap) | now |
 
 ```bash
-# 5b. Add the PPA + browser repo
-sudo add-apt-repository -y ppa:avengemedia/danklinux
+# 5b. Add the browser repo
 curl -fsSL https://raw.githubusercontent.com/imputnet/helium-linux/main/pubkey.asc \
   | sudo gpg --dearmor -o /usr/share/keyrings/helium.gpg
 echo "deb [arch=amd64 signed-by=/usr/share/keyrings/helium.gpg] https://pkg.helium.computer/deb stable main" \
@@ -274,30 +244,32 @@ sudo apt update
 **5c. The stack — every package, grouped by purpose:**
 
 ```bash
-# Compositor + UI
-sudo apt install -y niri quickshell qml6-module-qtquick-layouts
+# KDE Plasma 6 — the full functional desktop core (no apps, no bloat Recommends)
+sudo apt install -y --no-install-recommends \
+  plasma-desktop plasma-session-wayland kwin-wayland \
+  sddm sddm-theme-breeze kde-config-sddm \
+  systemsettings kscreen kio-extras kde-cli-tools \
+  powerdevil plasma-nm plasma-pa ksshaskpass \
+  polkit-kde-agent-1 breeze breeze-gtk-theme \
+  xdg-desktop-portal-kde kde-config-gtk-style \
+  kde-config-screenlocker kactivitymanagerd kmenuedit \
+  kde-spectacle kinfocenter
 
-# Terminal + launcher + clipboard
-sudo apt install -y ghostty fuzzel wl-clipboard
+# Terminal + clipboard + launcher
+sudo apt install -y ghostty wl-clipboard
 
-# Session helpers
-sudo apt install -y greetd xdg-desktop-portal polkitd brightnessctl
-
-# Media keys + audio control (audio restore: see step 5d)
-sudo apt install -y playerctl pipewire pipewire-pulse wireplumber
+# Audio (pipewire + plasma-pa volume control)
+sudo apt install -y pipewire pipewire-pulse wireplumber
 
 # Network (if not already enabled by the installer)
 sudo apt install -y network-manager wpa_supplicant
 
-# Fonts (bar + terminal + emoji)
+# Fonts (Plasma + terminal + emoji)
 sudo apt install -y fonts-inter fonts-jetbrains-mono \
   fonts-noto-core fonts-noto-color-emoji fonts-materialdesignicons-webfont
 
 # NVIDIA desktop driver (replaces the server variant)
 sudo apt install -y nvidia-driver-595
-
-# Terminal fallback + build deps (used by the awww wallpaper helper)
-sudo apt install -y alacritty cargo rustc pkg-config libwayland-dev liblz4-dev
 
 # Browser (real .deb, no snap)
 sudo apt install -y helium-bin
@@ -306,68 +278,60 @@ sudo apt install -y helium-bin
 sudo apt install -y nala
 ```
 
-**5d. Audio note:** `pipewire`/`wireplumber` were purged on this machine
-during the GNOME cleanup; install them here to restore sound (volume keys are
-already bound to `wpctl` in the config).
-
-**5e. What each package does** — see the full purpose tables in
-[🧩 Software stack & package inventory](#-software-stack--package-inventory)
-(every package is listed there with a "why" column).
-
-**5f. Post-install cleanup — GNOME leftovers that came with niri's deps:**
-
-Two chains sneak in through niri's recommendations and gnome-keyring — a file
-manager/portal chain and an indexer/calendar chain. Neither is used here:
-
-1. **File manager + portal chain** (`niri` recommends `xdg-desktop-portal-gnome`):
-   `nautilus` → `gvfs*` → `avahi-daemon`/`udisks2` + `ipp-usb`
-2. **Indexer + calendar chain** (pulled by `gnome-keyring`, which we keep):
-   `localsearch` (tracker indexer) + `evolution-data-server` (mail/calendar
-   backend) + `bluez-obexd` — these spawn 5 background user services
-   (evolution-* ×4, localsearch-3)
-
-Remove both chains (`xdg-desktop-portal` + `xdg-desktop-portal-gtk` stay —
-base portal support; `gnome-keyring` stays — needed for secrets):
-
-```bash
-sudo apt-get purge -y xdg-desktop-portal-gnome nautilus gvfs gvfs-backends \
-  gvfs-daemons avahi-daemon udisks2 ipp-usb localsearch \
-  evolution-data-server evolution-data-server-common bluez-obexd
-sudo apt-get autoremove --purge -y
-```
+**What the `--no-install-recommends` intentionally leaves out** (bloat or
+backends we don't have): `plasma-discover` (app store), `plasma-browser-integration`,
+`plasma-firewall` (needs firewalld), `plasma-vault` (needs cryfs), `plasma-thunderbolt`,
+`bluedevil` (no bluez), `plasma-disks` (needs udisks2), `khelpcenter`, `kgamma`,
+plus the entire KDE app suite (`kde-baseapps`: kate, dolphin, gwenview, konsole…).
+No kwin-x11, no xserver-xorg — **Wayland only**.
 
 > [!NOTE]
-> If you ever install a GTK file manager or need GNOME-style file dialogs,
-> `sudo apt install nautilus` brings the chain back automatically — harmless.
-> The evolution/localsearch user services stop on their own once purged; a
-> session restart drops any lingering units.
+> **`udisks2` returns as a hard dep of `plasma-workspace`** (removable-media
+> support). It is a dormant D-Bus-activated daemon here: `systemctl disable
+> udisks2` keeps it from running at boot; it starts on demand the moment
+> something mounts a drive. Best of both — no idle daemon, full function.
+
+> [!NOTE]
+> **No indexer.** The `baloo` daemon is *not* installed (only its libs, which
+> are hard deps) — Plasma runs with zero file-indexing in the background, the
+> same stance that removed tracker/localsearch.
+
+**5d. What each package does** — see the purpose tables in
+[🧩 Software stack & package inventory](#-software-stack--package-inventory).
+
+**5e. Post-install cleanup — the `udisks2` daemon:**
+
+```bash
+# Dormant-at-idle: disabled at boot, D-Bus starts it on demand (drive mounts)
+sudo systemctl disable udisks2
+```
 
 ---
 
 ### 6️⃣ NVIDIA driver follow-up (required after step 5)
 
 ```bash
-# kernel cmdline + VRAM fix + groups — full steps in the NVIDIA section
 sudoedit /etc/default/grub        # add nvidia-drm.modeset=1
 sudo usermod -aG video,render $USER
 sudo update-grub
 ```
 
 > [!IMPORTANT]
-> Apply the VRAM heap reuse fix (Step 2 in [🎮 NVIDIA](#-nvidia)) **before**
-> first GUI session — niri can otherwise hoard 1 GiB+ of VRAM.
+> Apply the VRAM heap reuse fix (Step 2 in [🎮 NVIDIA](#-nvidia)) — the
+> process-name profile must match `kwin_wayland` (not `niri` anymore).
 
 ---
 
-### 7️⃣ Config files (all ours, no third-party configs)
+### 7️⃣ Config files (all ours)
 
 | File | What it is |
 |---|---|
-| `~/.config/niri/config.kdl` | compositor (rewritten, commented) |
-| `~/.config/quickshell/shell.qml` | shell entry point |
-| `~/.config/quickshell/Bar.qml` | top bar (workspaces · stats · tray) |
-| `~/.config/quickshell/Taskbar.qml` | bottom bar (launcher · window taskbar) |
-| `~/.config/quickshell/Launcher.qml` | app launcher popup |
+| `~/.config/kwinrc` | compositor settings (effects, animations, window rules) |
+| `~/.config/plasma-org.kde.plasma.desktop-appletsrc` | panel layout + widgets |
+| `~/.config/plasmashellrc` | shell settings |
+| `~/.config/kglobalshortcutsrc` | key bindings |
+| `~/.config/kdeglobals` | colors, fonts, icons |
+| `~/.config/powermanagementprofilesrc` | power/backlight behavior |
 | `~/.config/ghostty/config` | terminal |
 
 These live in the `disubuntu` repo (`dotfiles/`) and are symlinked into
@@ -379,15 +343,61 @@ These live in the `disubuntu` repo (`dotfiles/`) and are symlinked into
 
 - [ ] Install **Ubuntu Server "Minimized"** from the ISO
 - [ ] Run step 3 (purge snaps/cloud/leftovers) + step 4 (interim cadence)
-- [ ] `sudo add-apt-repository -y ppa:avengemedia/danklinux` + helium repo
+- [ ] Add the helium repo (step 5b)
 - [ ] Install all packages from step 5c
 - [ ] `nvidia-drm.modeset=1` kernel cmdline + `sudo update-grub` (see [🎮 NVIDIA](#-nvidia))
-- [ ] NVIDIA VRAM fix JSON (see [🎮 NVIDIA](#-nvidia))
+- [ ] NVIDIA VRAM fix JSON with `kwin_wayland` (see [🎮 NVIDIA](#-nvidia))
 - [ ] `sudo usermod -aG video,render $USER`
-- [ ] `sudo systemctl enable --now greetd` (auto-login; else start `niri-session` from a TTY)
+- [ ] `sudo systemctl disable udisks2` (dormant-at-idle, step 5e)
 - [ ] Copy configs from this repo (step 7)
-- [ ] Reboot → log in on tty1 (greetd handles it)
-- [ ] `systemctl --user status niri` + `pgrep -a quickshell` → desktop up
+- [ ] Reboot → SDDM → log in → Plasma (Wayland)
+- [ ] `pgrep -a kwin_wayland` + `pgrep -a plasmashell` → desktop up
+
+---
+
+### 9️⃣ The niri → Plasma migration (done 2026-08-06)
+
+The desktop ran niri + a hand-written quickshell bar since setup. It was
+switched to KDE Plasma 6 (minimal core) on 2026-08-06. The exact migration
+(for reference/reproducibility):
+
+```bash
+# 9a. Install Plasma (full functional core, no apps — same command as 5c)
+sudo apt install -y --no-install-recommends \
+  plasma-desktop plasma-session-wayland kwin-wayland \
+  sddm sddm-theme-breeze kde-config-sddm \
+  systemsettings kscreen kio-extras kde-cli-tools \
+  powerdevil plasma-nm plasma-pa ksshaskpass \
+  polkit-kde-agent-1 breeze breeze-gtk-theme \
+  xdg-desktop-portal-kde kde-config-gtk-style \
+  kde-config-screenlocker kactivitymanagerd kmenuedit \
+  kde-spectacle kinfocenter
+
+# 9b. Purge the old stack
+sudo apt purge -y niri quickshell fuzzel greetd xwayland-satellite \
+  xdg-desktop-portal-gtk playerctl brightnessctl
+
+# 9c. Remove the old PPAs (niri/quickshell came from danklinux; hyprland PPA was unused)
+sudo rm -f /etc/apt/sources.list.d/avengemedia-ubuntu-danklinux-resolute.sources \
+          /etc/apt/sources.list.d/cppiber-ubuntu-hyprland-resolute.sources
+
+# 9d. Display manager: greetd → SDDM
+sudo systemctl enable sddm
+sudo systemctl disable udisks2     # Plasma hard-dep, keep dormant at idle
+
+# 9e. NVIDIA VRAM fix: process name niri → kwin_wayland
+sudo sed -i 's/"matches": "niri"/"matches": "kwin_wayland"/' \
+  /etc/nvidia/nvidia-application-profiles-rc.d/50-limit-free-buffer-pool-in-wayland-compositors.json
+
+# 9f. Audio restored (needed by plasma-pa)
+sudo apt install -y pipewire pipewire-pulse wireplumber
+
+# 9g. Wallpaper helpers removed (Plasma has its own wallpaper)
+rm -f ~/.local/bin/wp ~/.local/bin/wp-restore ~/.local/bin/awww ~/.local/bin/awww-daemon
+
+sudo reboot
+```
+
 </details>
 
 ---
@@ -407,16 +417,14 @@ A **hybrid-graphics laptop** — TWO GPUs, and the desktop can use either one.
 | Kernel | Linux 7.0.0-28-generic |
 | Displays | 🖥️ **eDP-2** (built-in BOE panel, 1920×1080 @ **120 Hz**) · 🖥️ **HDMI-A-1** (Sharp TV, 1920×1080 @ **60 Hz** — forced over its 50 Hz preferred mode) |
 
-### 🖥️ Displays (configured in `outputs`)
+### 🖥️ Displays (configured in System Settings → Display / `kscreen-doctor`)
 
 | Output | Mode | Position | Notes |
 |---|---|---|---|
-| `eDP-2` (BOE panel) | `1920x1080@120.002` | `x=0 y=0` | **focus-at-startup** — the main screen |
-| `HDMI-A-1` (Sharp TV) | `1920x1080@60.000` | `x=1920 y=0` | TV prefers 50 Hz; config forces 60 Hz for a smoother desktop |
+| `eDP-2` (BOE panel) | `1920x1080@120.002` | primary | the main screen |
+| `HDMI-A-1` (Sharp TV) | `1920x1080@60.000` | right of panel | TV prefers 50 Hz; 60 Hz forced for a smoother desktop |
 
-Both use `backdrop-color "#111111"` (visible in the Overview between
-workspaces). Neither output supports VRR (checked via `niri msg outputs`).
-Find your modes/positions anytime with `niri msg outputs`.
+Find your modes/positions anytime with `kscreen-doctor -o`.
 
 ### 🎛️ The two GPUs
 
@@ -428,29 +436,19 @@ Find your modes/positions anytime with `niri msg outputs`.
 | GPU | Device | Role |
 |---|---|---|
 | 🟦 **Intel UHD Graphics (iGPU)** | `/dev/dri/card0` | integrated, low power, no proprietary driver; the eDP panel is physically wired to it, so it *always* does the display output |
-| 🟩 **NVIDIA RTX 2060 Mobile (dGPU)** | `/dev/dri/card1` | 6 GB VRAM, more powerful; with `nvidia-drm.modeset=1` it renders the whole desktop (niri renders through it, Intel just scans out) |
+| 🟩 **NVIDIA RTX 2060 Mobile (dGPU)** | `/dev/dri/card1` | 6 GB VRAM, more powerful; with `nvidia-drm.modeset=1` it renders the whole desktop (KWin renders through it, Intel just scans out) |
 
 ### 🔀 How the graphics stack is wired (PRIME / hybrid)
 
 ```
-Applications (Ghostty, quickshell, etc.)
+Applications (Ghostty, plasmashell, etc.)
         │  Vulkan/OpenGL/EGL
         ▼
-   niri (compositor) ── renders with the NVIDIA GPU (via GBM/EGL)
+   KWin (compositor) ── renders with the NVIDIA GPU (via GBM/EGL)
         │
         ▼
    Intel iGPU ── scans out to the laptop screen (eDP)
 ```
-
-Why "render with NVIDIA, display with Intel"? Intel alone is perfectly usable
-and lightest, but the RTX 2060 gives much better performance for games and GPU
-workloads. The NVIDIA driver has a known VRAM quirk affecting compositors — see
-the [🎮 NVIDIA](#-nvidia) section for the fix that's already applied.
-
-> [!TIP]
-> **This is what "PRIME render offload" means in practice:** niri does its
-> rendering on the dGPU (fast), then hands finished frames to the iGPU, which
-> owns the panel. You get dGPU performance with iGPU battery behavior at idle.
 
 ### 🛠️ Hardware commands
 
@@ -459,7 +457,7 @@ the [🎮 NVIDIA](#-nvidia) section for the fix that's already applied.
 | `lspci \| grep -iE "vga\|3d"` | both GPUs on the PCI bus |
 | `nvidia-smi` | NVIDIA GPU status, VRAM, processes |
 | `ls /dev/dri/` | render devices (`card0`=Intel, `card1`=NVIDIA) |
-| `cat /sys/class/drm/card1/device/…` | raw GPU info if needed |
+| `kscreen-doctor -o` | outputs, modes, positions |
 
 ---
 
@@ -468,38 +466,32 @@ the [🎮 NVIDIA](#-nvidia) section for the fix that's already applied.
 What runs, what each piece does, and every installed package by category.
 
 > [!NOTE]
-> 📊 **Snapshot 2026-08-06:** **967 packages** installed, **70 manually
-> installed**, **30 enabled services** — measured *after* the 2026-08-06 base
-> audit (see [🧹 Maintenance](#-maintenance--service-inventory)).
+> 📊 **Snapshot 2026-08-06 (post-migration):** **1,445 packages** installed,
+> **92 manually installed**, **28 enabled services** — measured *after* the
+> niri→Plasma migration and the 2026-08-06 base audit (see [🧹 Maintenance](#-maintenance--service-inventory)).
 
 ### 🗺️ The whole setup, one diagram
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│  DESKTOP (user-visible)                                       │
+│  PLASMA DESKTOP (user-visible)                                │
 │                                                               │
-│  ┌─────────────────────────┐  ┌────────────┐  ┌────────────┐  │
-│  │  quickshell (1 process) │  │  fuzzel    │  │  Ghostty   │  │
-│  │  ┌───────────────────┐  │  │  launcher  │  │  terminal  │  │
-│  │  │ top bar:          │  │  │  (Mod+D)   │  │  (Mod+T)   │  │
-│  │  │ workspaces ·      │  │  └────────────┘  └────────────┘  │
-│  │  │ net/mem/cpu · kbd │  │                                 │
-│  │  │ date · clock ·    │  │                                 │
-│  │  │ tray              │  │                                 │
-│  │  ├───────────────────┤  │                                 │
-│  │  │ bottom bar:       │  │                                 │
-│  │  │ launcher ·        │  │                                 │
-│  │  │ window taskbar    │  │                                 │
-│  │  └───────────────────┘  │                                 │
-│  └─────────────────────────┘                                 │
+│  ┌───────────────────────────────┐  ┌────────────┐  ┌───────┐ │
+│  │  plasmashell (1 process)      │  │  KRunner   │  │Ghostty│ │
+│  │  panels + widgets:            │  │  launcher  │  │terminal│ │
+│  │  · top panel: apps · clock    │  │  (Meta)    │  └───────┘ │
+│  │  · bottom panel: taskbar,     │  │            │            │
+│  │    system tray (network,      │  │            │            │
+│  │    audio, power), clipboard   │  └────────────┘            │
+│  └───────────────────────────────┘                            │
 │                                                               │
-│  niri ── compositor: windows, workspaces, keybinds,           │
-│          notifications (built-in), screenshots (built-in)     │
+│  KWin (kwin_wayland) ── compositor: windows, effects,         │
+│          notifications, screen locker, screen edges           │
 ├───────────────────────────────────────────────────────────────┤
 │  SYSTEM SERVICES                                              │
-│  greetd (login) → niri session · quickshell spawned by niri  │
-│  NOTE: greetd is currently DISABLED (started manually)        │
-│  (audio: purged 2026-08-04 — see Package inventory)           │
+│  SDDM (login) → Plasma session (Wayland)                      │
+│  powerdevil (power/brightness) · kded6 · kactivitymanagerd    │
+│  polkit agent · plasma-nm (NetworkManager applet)             │
 ├───────────────────────────────────────────────────────────────┤
 │  GRAPHICS                                                     │
 │  nvidia-driver-595 (dGPU render) + Intel iGPU (scanout)       │
@@ -509,731 +501,231 @@ What runs, what each piece does, and every installed package by category.
 
 ### 👤 Who does what
 
-> [!TIP]
-> **Why these specific tools?** The table below is the whole "why" in one
-> place — every role is filled by either niri itself, our own QML, or a
-> standard Wayland utility. Nothing here pulls a desktop environment along.
-
 | Job | Handled by | Why this choice |
 |---|---|---|
-| **Window management** | **niri** | scrollable tiling, pure Wayland, tiny |
-| **Notifications** | **niri (built-in)** | popups rendered by the compositor — zero extra daemons |
-| **Screenshots** | **niri (built-in)** | `Print` / `Ctrl+Print` / `Alt+Print` — no grim/slurp needed |
-| **Status bar** | **quickshell + our `shell.qml`** | one process, ~990 lines of hand-written QML |
-| **App launcher** | **quickshell (`Launcher.qml`)** | popup under the bar, Mod+R; fuzzel kept as fallback (Mod+D) |
+| **Desktop shell** | **plasmashell** | panels, widgets, notifications, tray — Plasma's native shell |
+| **Window management** | **KWin (Wayland)** | Plasma's compositor: tiling, effects, screen locker |
+| **App launcher** | **KRunner** (`Meta`) | Plasma's built-in launcher + app search |
+| **Screenshots** | **KDE Spectacle** | Plasma's native tool; `Print` family |
+| **Status bar / tray** | plasmashell panels | native network (plasma-nm), audio (plasma-pa), power (powerdevil) applets |
 | **Browser** | **Helium** (`helium-bin`, .deb repo) | Chromium fork with Chrome-extension support; real .deb, no snap |
 | **Terminal** | **Ghostty** | native Wayland, GPU-accelerated |
-| **Clipboard** | **wl-clipboard** (`wl-copy`/`wl-paste`) | the Wayland standard |
-| **Backlight keys** | **brightnessctl** | works on Intel panels |
-| **Audio** | **none (removed)** | purged with the GNOME cleanup; restore via `sudo apt install pipewire pipewire-pulse wireplumber` — volume keys use `wpctl` |
-| **Login** | **greetd** | headless login manager, no GNOME bloat (installed; currently **disabled** — see [🚀 Session Startup](#-session-startup)) |
+| **Clipboard** | Plasma clipboard + **wl-clipboard** | both installed; plasma's clipboard has history |
+| **Backlight keys** | **powerdevil** | Plasma's power management handles brightness natively |
+| **Audio** | **pipewire + wireplumber + plasma-pa** | restored 2026-08-06 with the migration; volume keys in KWin |
+| **Login** | **SDDM** | Plasma's native display manager; breeze theme |
 | **Desktop GPU** | **nvidia-driver-595** | see [🎮 NVIDIA](#-nvidia) |
 
 ### 🚫 What is intentionally NOT here
 
-> [!TIP]
-> **The lean principle:** if a component can be built into niri or our bar, we
-> do not run a separate daemon for it. Every extra process is a point of
-> failure, memory, and maintenance.
-
 | Not installed | Why we skip it |
 |---|---|
-| Full X server / X11 apps | pure Wayland provides everything we need; rootless `xwayland-satellite` is installed to run rare X11 apps |
-| Desktop environment, GUI display manager | greetd text login + niri is the whole "DE" |
-| Third-party shell configs (waybar-ports, DMS shells, …) | the bar is ours — ~990 lines, fully readable |
-| `waybar`, `mako`, `swaybg`, `swaylock`, `grim`, `slurp` | niri + our bar replace them (notifications & screenshots are built into niri) |
-| `gammastep`/nightlight, polkit agent, standalone tray daemon | keep it lean — tray lives in the top bar
+| KDE apps (`kde-baseapps`: kate, dolphin, gwenview, konsole, ark, elisa, …) | Plasma is the desktop, not an app bundle — ghostty/helium cover the needs |
+| `plasma-discover` | GUI app store — we use `nala` |
+| `baloo` (file indexer) | **no background indexers** — same reason tracker/localsearch were purged |
+| `kwin-x11`, `xserver-xorg` | **pure Wayland** (KWin's hard-dep `xwayland` ships, but nothing X11 runs) |
+| Full X server / X11 apps | pure Wayland provides everything we need |
+| Snaps, cloud-init, apport, GNOME leftovers | the base rules from step 3 — untouched by the migration |
+| `waybar`, `mako`, `swaybg`, `swaylock`, `grim`, `slurp`, `fuzzel` | Plasma provides equivalents (panel, notifications, wallpaper, lock, screenshots, krunner) |
+| Wallpaper helpers (`awww`, `pandora`) | Plasma has its own wallpaper engine |
 
 ### 📦 Package inventory (the part that matters)
 
-**Core desktop stack (hand-picked)**
-
-| Package | Version | Purpose |
-|---|---|---|
-| `niri` | — | the Wayland compositor |
-| `quickshell` | — | QML runtime that renders our bar (from the `danklinux` PPA) |
-| `ghostty` | — | terminal emulator |
-| `fuzzel` | (universe) | application launcher |
-| `wl-clipboard` | (universe) | `wl-copy` / `wl-paste` clipboard tools |
-| `brightnessctl` | (universe) | screen brightness control |
-| `qml6-module-qtquick-layouts` | (universe) | QML `RowLayout` module used by the bar |
-| `gh` | (universe) | GitHub CLI — authenticated, part of the dev workflow (kept after the 2026-08-06 base audit) |
-
-**Fonts (needed by the bar, terminal, and apps)**
+**Plasma core (hand-picked, no Recommends bloat)**
 
 | Package | Purpose |
 |---|---|
-| `fonts-inter` | the bar's UI font (Inter) |
-| `fonts-jetbrains-mono` | terminal monospace font |
-| `fonts-noto-core` | fallback glyph coverage for most scripts |
-| `fonts-noto-color-emoji` | emoji rendering in apps |
-| `fonts-materialdesignicons-webfont` | Material Design Icons glyphs — used by the bar's NET/MEM/CPU/layout/clock icons |
+| `plasma-desktop` (+ `plasma-workspace`) | the desktop shell — panels, widgets, KCMs |
+| `kwin-wayland` + `plasma-session-wayland` | the compositor + Wayland session files |
+| `sddm` + `sddm-theme-breeze` + `kde-config-sddm` | login manager + theme + settings KCM |
+| `systemsettings` | the control center |
+| `kscreen` | display configuration |
+| `powerdevil` | power profiles + backlight control |
+| `plasma-nm` | NetworkManager system-tray applet |
+| `plasma-pa` | audio applet (needs pipewire — restored) |
+| `kde-spectacle` | screenshots |
+| `kio-extras` · `kde-cli-tools` | file-dialog + command-line plumbing |
+| `ksshaskpass` · `polkit-kde-agent-1` | SSH/polkit prompts |
+| `breeze` + `breeze-gtk-theme` + `kde-config-gtk-style` | theme + GTK integration |
+| `xdg-desktop-portal-kde` | Wayland portals (screen sharing, file dialogs) |
+| `kde-config-screenlocker` · `kactivitymanagerd` · `kmenuedit` | lock screen · activities · menu editor |
+| `kinfocenter` | system info |
 
-**Graphics: NVIDIA (desktop driver)**
-
-| Package | Purpose |
-|---|---|
-| `nvidia-driver-595` | metapackage: full desktop stack |
-| `libnvidia-gl-595` | GL/EGL rendering libraries (the dGPU's display stack) |
-| `nvidia-utils-595` | `nvidia-smi`, tools |
-| `nvidia-dkms-595` (or precompiled modules) | kernel modules (`nvidia`, `nvidia_drm`, …) |
-| `nvidia-firmware-595` | GSP firmware for Turing (RTX 2060) |
-
-**Graphics: Mesa / Intel (system defaults)**
-
-| Package | Purpose |
-|---|---|
-| `mesa-libgallium` + `libgl1-mesa-dri` | open-source GL drivers (Intel + software) |
-| `libegl-mesa0`, `libglx-mesa0` | EGL/GLX implementations |
-| `libgbm1` | GBM buffer allocation (used by compositors) |
-| `libdrm-intel1` | Intel kernel DRM userspace |
-| `mesa-vulkan-drivers`, `libvulkan1` | Vulkan support |
-
-**Audio (came with the Ubuntu server image; PURGED 2026-08-04 — reinstall to restore sound)**
+**The rest of the stack (unchanged by the migration)**
 
 | Package | Purpose |
 |---|---|
-| `pipewire`, `pipewire-bin` | audio server |
-| `pipewire-audio`, `pipewire-pulse`, `pipewire-alsa` | audio + PulseAudio/ALSA compatibility |
-| `wireplumber` | session manager (device routing, volumes) |
-| `bluez` (+`libspa-0.2-bluetooth`) | Bluetooth audio support (also not currently installed) |
+| `ghostty` | terminal emulator |
+| `helium-bin` | the browser (real .deb) |
+| `wl-clipboard` | `wl-copy` / `wl-paste` |
+| `gh` | GitHub CLI |
+| `nala` | pretty apt frontend |
+| `pipewire` + `pipewire-pulse` + `wireplumber` | audio (restored 2026-08-06) |
+| `nvidia-driver-595` + stack | dGPU rendering (see [🎮 NVIDIA](#-nvidia)) |
+| fonts: inter, jetbrains-mono, noto-core, noto-color-emoji, materialdesignicons | UI + terminal + emoji |
 
-**Session & login**
-
-| Package | Purpose |
-|---|---|
-| `greetd` | login manager (text greeter: `agreety`) |
-| `xdg-desktop-portal` (+ `xdg-desktop-portal-gtk`) | screen sharing, file dialogs for sandboxed apps (the GNOME backend is deliberately removed in step 5f) |
-| `polkitd`, `pkexec` | privilege authorization for apps |
-| `accountsservice` | user account info (avatar etc.) |
-
-**Session tools the shell uses**
-
-| Tool | Used for |
-|---|---|
-| `niri msg` | the bar reads workspaces + sends focus actions (see [🧱 The Quickshell Bar](#-the-quickshell-bar)) |
-| `wpctl` | volume keys (in niri config binds) |
-| `brightnessctl` | brightness keys (in niri config binds) |
-| `fuzzel` | Mod+D (fallback launcher) |
+**Removed with the migration (2026-08-06):** `niri` · `quickshell` ·
+`fuzzel` · `greetd` · `xwayland-satellite` · `xdg-desktop-portal-gtk` ·
+`playerctl` · `brightnessctl` · `awww`/`pandora` + `wp` scripts · the
+`danklinux` and `hyprland` PPAs. Configs preserved in git history (`pre-plasma`
+tag).
 
 ### 🔢 Process count at idle
 
 | Process | Count | What it is |
 |---|---|---|
-| `niri` | **1** | the compositor |
-| `quickshell` | **1** | the whole UI |
-| terminal | **0** | nothing at idle |
-| `pipewire` + `wireplumber` | **2–3** | only after audio is restored |
+| `kwin_wayland` | **1** | the compositor |
+| `plasmashell` | **1** | the whole UI (panels + widgets + tray) |
+| `kded6` + `kactivitymanagerd` | 2 | Plasma service daemons |
+| `polkit-kde-authentication-agent-1` | 1 | privilege prompts |
+| `powerdevil` | 1 | power management |
+| `xdg-desktop-portal-kde` (+ `-gtk` gone) | 1 | portals |
+| `pipewire` + `wireplumber` | 2 | audio |
+| **total** | **~7-8** | on top of systemd |
 
-That's the whole desktop: **~2 processes** on top of systemd right now
-(audioless); **~5** once pipewire + wireplumber are back.
+That's the honest cost of a full desktop: **~7-8 processes at idle**, vs ~2
+with the hand-rolled niri stack — in exchange for the complete, supported
+Plasma feature set (settings, widgets, lock screen, power, network, audio).
 
 ---
 
 ## 🚀 Session Startup
 
-How this machine boots into the desktop. No GUI display manager — just `greetd`,
-a headless login manager, and the compositor.
-
-> [!NOTE]
-> **Current state (2026-08-04):** `greetd` is installed and configured but is
-> currently **disabled** (`systemctl is-enabled greetd` → `disabled`). The
-> running desktop session was started from a shell (`/usr/bin/niri-session -l`).
-> The flow below is the configured/auto-login path; to make it automatic:
-> `sudo systemctl enable --now greetd`.
+No GUI display manager bloat — just **SDDM**, Plasma's own lightweight login
+manager, and the Wayland session.
 
 ### 🥾 Boot order
 
-1. **Ubuntu boots** → greetd takes over **tty1**
-2. **greetd** runs `agreety` — a text login prompt (username + password)
-3. After login, greetd runs: **`niri-session`**
-4. `niri-session`:
-   - imports the login environment into the systemd user session
-   - refreshes the D-Bus activation environment
-   - starts `niri.service` (the compositor, with `--session`)
-5. **niri** reads `~/.config/niri/config.kdl` → spawns quickshell
-6. **quickshell** renders the bars (top: workspaces · stats · tray; bottom: launcher · taskbar)
-7. ✅ **Desktop is up** — ~2 processes total (audioless; ~5 with audio)
+1. **Ubuntu boots** → SDDM takes over a VT
+2. **SDDM** shows the login screen (breeze theme)
+3. After login, SDDM starts: **`plasma-session` (Wayland)**
+4. `plasma-session` starts `kwin_wayland` (the compositor) → `plasmashell` → plasma-nm/plasma-pa/powerdevil applets
+5. ✅ **Desktop is up** — panels + widgets + tray
 
 ### 🗂️ Where the pieces live
 
 | Piece | File |
 |---|---|
-| greetd config | `/etc/greetd/config.toml` |
-| greetd service | `greetd.service` (system) |
-| niri systemd unit | `/usr/lib/systemd/user/niri.service` |
-| niri session script | `/usr/bin/niri-session` |
-| compositor config | `~/.config/niri/config.kdl` |
-| shell config | `~/.config/quickshell/shell.qml` |
+| SDDM config | `/etc/sddm.conf.d/` + `/etc/sddm.conf` |
+| SDDM service | `sddm.service` (system) |
+| session files | `/usr/share/wayland-sessions/plasma.desktop` |
+| compositor config | `~/.config/kwinrc` |
+| shell config | `~/.config/plasmashellrc` + `plasma-org.kde.plasma.desktop-appletsrc` |
 
-### 🤔 Why greetd instead of GDM/SDDM?
+### 🤔 Why SDDM instead of greetd/GDM?
 
 | Option | Why not / why yes |
 |---|---|
-| **GDM / SDDM** | would pull in GNOME/KDE dependencies — against the lean principle |
-| **greetd** ✅ | one small daemon + a text greeter (`agreety`); runs `niri-session` for you and handles seat/permissions correctly |
-| **Manual TTY login** | same UX, but greetd auto-starts the session — tidier |
+| **GDM** | GNOME's DM — would pull GNOME dependencies |
+| **greetd** | text-only greeter; no graphical login, no Plasma integration (was the pre-migration choice) |
+| **SDDM** ✅ | Plasma's native DM — graphical login, breeze theme, `kde-config-sddm` settings KCM, screen-locker integration |
 
-> [!NOTE]
-> This is a **headless login flow**: greetd has no GUI. You type your
-> username + password on a text screen, and the desktop starts underneath it —
-> no display-manager graphics at all.
-
-### ⚙️ The greetd config (already set up)
-
-`/etc/greetd/config.toml`:
-
-```toml
-[terminal]
-vt = 1
-
-[default_session]
-command = "agreety --cmd niri-session"
-user = "greeter"
-```
-
-| Setting | Meaning |
-|---|---|
-| `vt = 1` | greeter on tty1 |
-| `agreety --cmd niri-session` | after login, run niri |
-| `user = "greeter"` | greeter runs as unprivileged `greeter`; your session runs as *you* |
-
-**To enable greetd (it is currently disabled):**
-
-```bash
-sudo systemctl enable --now greetd   # auto-login: boot → greetd → niri → quickshell
-```
-
-> [!TIP]
-> If greetd shows "start-limit-hit" in `systemctl status greetd`, it was
-> restarted too quickly (e.g. a session exited right after boot). It resets on
-> reboot; if it persists, check `journalctl -u greetd`.
-
-### 🧱 How the shell starts
-
-niri's config contains `spawn-at-startup "quickshell"` — the compositor starts
-the bar as its child, so quickshell automatically gets `WAYLAND_DISPLAY`. (No
-systemd unit needed for it — that would require extra environment plumbing for
-no benefit.)
-
-### 🛠️ Useful commands
+### ⚙️ Useful commands
 
 | Command | What it does |
 |---|---|
-| `systemctl status greetd` | login manager status |
-| `journalctl -u greetd` | login manager logs |
-| `systemctl --user status niri` | compositor status |
-| `journalctl --user -u niri -f` | compositor logs (live) |
-| `niri msg -j workspaces` | verify IPC (bar data source) |
-| `pgrep -a quickshell` | shell should be running |
+| `systemctl status sddm` | login manager status |
+| `journalctl -u sddm -b` | login manager logs |
+| `pgrep -a kwin_wayland` | compositor running? |
+| `pgrep -a plasmashell` | shell running? |
+| `plasmashell --replace` | restart the shell (fixes a broken panel) |
+| `kscreen-doctor -o` | display status |
 
 ---
 
-## 🎛️ niri Configuration
+## 🎛️ KWin & Plasma Configuration
 
-`~/.config/niri/config.kdl` — the compositor. **Format**: KDL, `//` starts a
-comment. Wiki: <https://niri-wm.github.io/niri/>.
+Config files in `~/.config/`. Everything is editable as plain text and live-
+applies via System Settings; key files:
 
-### 🗺️ Section map
-
-| Lines | Section | What it does |
-|---|---|---|
-| 10-35 | `environment` | environment variables for all Wayland apps |
-| 37-63 | `input` | keyboard + touchpad + focus-follows-mouse |
-| 64-80 | `outputs` | eDP-2 (120Hz panel) + HDMI-A-1 (60Hz TV), positions, backdrop |
-| 81-89 | `gestures` | hot corners → Overview toggle |
-| 90-166 | `layout` | gaps, centering, presets, focus ring, shadows, tab indicator |
-| 167-174 | startup | spawns quickshell (the bar) + wallpaper restore |
-| 175-183 | misc | CSD handling, screenshots |
-| 184-231 | `animations` | springs + easings — the "alive" feel (below) |
-| 232-263 | window rules | corner radius, opacity, quickshell/pandora behavior |
-| 264-275 | layer rules | backdrop placement for quickshell + pandora |
-| 276-443 | `binds` | all keybindings |
-
-### 🌍 `environment` — what apps see
-
-```kdl
-environment {
-    XDG_CURRENT_DESKTOP "niri"          // apps know the desktop name
-    QT_QPA_PLATFORM "wayland"           // Qt apps: native Wayland (no X11)
-    QT_QPA_PLATFORMTHEME "gtk3"         // Qt apps follow the GTK theme
-    QT_QPA_PLATFORMTHEME_QT6 "gtk3"
-    ELECTRON_OZONE_PLATFORM_HINT "auto" // Electron apps: use Wayland
-}
-```
-
-> [!NOTE]
-> Without these, Qt/Electron apps fall back to X11 (which we don't run) or look
-> out of place.
-
-### ⌨️ `input`
-
-```kdl
-keyboard { xkb {} numlock }   // layout from systemd-localed; NumLock on
-touchpad { tap; natural-scroll }   // tap-to-click, macOS-style scrolling
-mouse   { }                   // defaults
-```
-
-| Setting | Effect |
+| File | Controls |
 |---|---|
-| `keyboard { xkb {} }` | layout follows **systemd-localed** — change it live with `localectl` (no reload needed) |
-| `numlock` | NumLock on at boot |
-| `touchpad { tap }` | tap-to-click |
-| `natural-scroll` | macOS-style scrolling |
-| `focus-follows-mouse` | **hover to focus** — hovering a window focuses it without clicking; `max-scroll-amount="0%"` only focuses windows already fully on screen (no surprise scrolling). Remove the argument to also focus off-screen windows by scrolling to the edge |
+| `~/.config/kwinrc` | effects, animations, window rules, screen edges |
+| `~/.config/kglobalshortcutsrc` | all key bindings |
+| `~/.config/kdeglobals` | colors, fonts, icons, cursor |
+| `~/.config/plasma-org.kde.plasma.desktop-appletsrc` | panels + widgets layout |
+| `~/.config/plasmashellrc` | shell behavior |
+| `~/.config/powermanagementprofilesrc` | power profiles |
+| `~/.config/sddm.conf.d/` | login screen settings |
 
-Change keyboard layout with: `localectl set-x11-keymap us` (or `de`, `fr`, …).
+### 🖼️ Panels & widgets (the "bar")
 
-### 🖥️ `outputs` — the two displays
+Two default Plasma panels, configured in System Settings → Desktop:
 
-```kdl
-output "eDP-2" {
-    mode "1920x1080@120.002"
-    position x=0 y=0
-    focus-at-startup
-    backdrop-color "#111111"
-}
+- **Top panel** — app launcher, clock; the "bar" equivalent
+- **Bottom panel** — task manager, system tray (network/audio/power/clipboard)
 
-output "HDMI-A-1" {
-    mode "1920x1080@60.000"     // TV prefers 50 Hz; force 60 for smoothness
-    position x=1920 y=0
-    backdrop-color "#111111"
-}
-```
+Everything is movable: right-click a panel → Edit Mode. The layout lands in
+`plasma-org.kde.plasma.desktop-appletsrc` and is backed up to this repo.
+
+### 🪟 KWin — compositor
 
 | Setting | What it does |
 |---|---|
-| `mode "1920x1080@120.002"` | exact refresh rate — must match `niri msg outputs` to 3 decimals |
-| `position x=… y=…` | logical-pixel placement; drives `focus-monitor-*` direction |
-| `focus-at-startup` | niri focuses the laptop panel on start |
-| `backdrop-color "#111111"` | overview/backdrop color, matches the background |
-| `variable-refresh-rate` | off here — neither output supports VRR |
-
-### 🖱️ `gestures` — hot corners
-
-```kdl
-gestures {
-    hot-corners {
-        top-left
-    }
-}
-```
-
-Mouse into the **top-left corner** → toggles the Overview (`Mod+O`). `off`
-disables; corners can be overridden per-output in `outputs`.
-
-### 🖼️ `layout` — how windows look
-
-```kdl
-gaps 5                                  // spacing between windows (logical px)
-center-focused-column "on-overflow"     // center focused column when it doesn't fit
-always-center-single-column             // lone column always centers
-empty-workspace-above-first             // blank workspace above workspace 1
-background-color "#111111"              // dark background (no wallpaper in this setup)
-preset-column-widths { 0.25 0.33333 0.5 0.66667 0.75 }
-preset-window-heights { 0.25 0.33333 0.5 0.66667 0.75 }
-focus-ring { width 2 ... }              // thin Gruvbox ring around the focused window
-border { off }                          // no permanent borders
-shadow  { on ... }                      // soft drop shadows
-tab-indicator { ... }                   // visible tab in tabbed mode (Mod+W)
-insert-hint { color "#8ec07c80" }       // shows drop position when dragging
-```
-
-**The productivity bits** (tuned for a single-screen laptop):
-
-| Option | What it does |
-|---|---|
-| `center-focused-column "on-overflow"` | focusing a column centers it when it won't fit next to the previous one — you always see what you're working on |
-| `always-center-single-column` | one window on a workspace sits dead-center, not off to a side |
-| `empty-workspace-above-first` | scrolling up from workspace 1 lands on a blank desktop (macOS-spaces style) |
-| `preset-column-widths` / `preset-window-heights` | **5 presets each**: ¼ · ⅓ · ½ · ⅔ · ¾ — 4-up grid, 3-up, and split-screen, all reachable with `Mod+Ctrl+W` / `Mod+Ctrl+Shift+R` |
-| `tab-indicator` | when a column is tabbed (`Mod+W`), a Gruvbox-colored indicator shows which tab is active — hidden when the column has one window |
-| `insert-hint` | dragging a window with the mouse shows a colored line where it will land |
-
-> [!TIP]
-> Want a wallpaper later? Set `background-color "transparent"` and run a
-> wallpaper layer (e.g. a quickshell layer in the background). Not needed now.
+| Effects: wobbly windows, blur, overview | tuned in System Settings → Desktop Effects |
+| Window rules | per-app behavior (e.g. helium always floating) |
+| Screen edges | corners → overview / desktop grid |
+| Tiling | drag to edges for split; tiling layout system in 6.x |
 
 ### 🚀 Startup
 
-```kdl
-spawn-at-startup "quickshell"
-```
-
-The only autostart. Everything else is keybound.
-
-### ⚙️ Misc
-
-```kdl
-prefer-no-csd    // ask apps to drop their own titlebars (cleaner tiling)
-screenshot-path  // Print-key screenshots land in ~/Pictures/Screenshots/
-```
-
-### 🎬 Animations — the "alive" feel
-
-Two animation types, tuned for a **living desktop**:
-
-- **Springs** (physical model): used for movement — they react to touchpad
-  gesture velocity and can *bounce* at the end. `damping-ratio < 1.0` =
-  underdamped (oscillates a little = life); `1.0` = critically damped (no
-  bounce). Lower stiffness = slower.
-- **Easing** (timed curve): used for open/close — fixed `duration-ms` +
-  `curve` (`ease-out-*`, `linear`, or a custom `"cubic-bezier" a b c d`).
-
-| Animation | Type | Tuning note |
-|---|---|---|
-| `workspace-switch` | spring `0.75/900` | slight bounce on switch |
-| `horizontal-view-movement` | spring `0.8/850` | camera scroll keeps up with gestures |
-| `window-open` | easing 180 ms, `cubic-bezier 0.05 0.7 0.1 1` | fast pop-in |
-| `window-close` | easing 140 ms, `ease-out-quad` | quick fade/shrink out |
-| `window-movement` | spring `0.85/900` | gentle slide + bounce when columns move |
-| `window-resize` | spring `0.85/900` | springs keep resize synchronized with view |
-| `config-notification-open-close` | spring `0.6/1000` | default underdamped wobble |
-| `exit-confirmation-open-close` | spring `0.6/600` | soft dialog pop |
-| `screenshot-ui-open` | easing 200 ms, `ease-out-quad` | fade-in of the capture UI |
-| `overview-open-close` | spring `0.7/800` | the Overview zoom has life |
-| `recent-windows-close` | spring `0.85/800` | fade-out of the switcher |
-
-> [!TIP]
-> Tweak one animation, save, and hit `niri msg action load-config-file` —
-> it applies instantly. Want everything slower? Add `slowdown 3.0`; want it
-> all off? `off` at the top of the block.
-> ⚠️ Keep `damping-ratio` ≤ 1.0 — overdamped springs have known numerical
-> glitches upstream.
-
-### 🪟 Window rules
-
-| Rule | Effect |
-|---|---|
-| ghostty / alacritty: `draw-border-with-background false` | no focus-ring rectangle behind terminal transparency |
-| all windows: `geometry-corner-radius 12`, `clip-to-geometry` | rounded corners |
-| inactive windows: `opacity 0.9` | subtle dimming of the unfocused window |
-| `app-id ~ org.quickshell`: `open-floating true` | quickshell popups float |
-
-### 📐 Layer rules
-
-```kdl
-layer-rule { match namespace="^quickshell$" place-within-backdrop true }
-```
-
-Puts quickshell's layers on the workspace backdrop so they're visible in the
-Overview (`Mod+O`).
-
-### 🔄 Checking and reloading
-
-```bash
-niri msg action load-config-file   # apply config without restarting
-niri msg -j workspaces          # verify IPC (the bar reads this)
-niri msg version                # compositor version
-```
-
-> [!TIP]
-> Reload is **instant and safe** — that's how you iterate on this file.
-
----
-
-## 🧱 The Quickshell Bar
-
-The entire UI is a hand-written quickshell config (~990 lines). No third-party
-shells, no plugins — just quickshell core + niri's IPC. The look is a port of
-the user's waybar config (`diskukumber/disnixos` · `.config/waybar`), including
-its Gruvbox palette and per-module colors.
-
-### 📄 Files
-
-| File | What it is |
-|---|---|
-| `~/.config/quickshell/shell.qml` | entry point (starts the bars) |
-| `~/.config/quickshell/Bar.qml` | **top bar** — workspaces + stats + tray |
-| `~/.config/quickshell/Taskbar.qml` | **bottom bar** — app launcher + window taskbar (icons only) |
-| `~/.config/quickshell/Launcher.qml` | app launcher popup (Mod+R) |
-| `~/.config/quickshell/Gruvbox.qml` | shared palette + icon font name (auto-imported component) |
-| `~/.config/quickshell/AppIcons.qml` | shared icon resolver: app id → icon file path (auto-imported) |
-
-> [!NOTE]
-> Quickshell loads `shell.qml` automatically when started. Files in the same
-> folder starting with an uppercase letter (like `Bar.qml`) become importable
-> components.
-
-### 👀 What the bar shows
-
-- **Top bar** (`Bar.qml`, 26 px, docked at the top edge):
-
-```
-┌───────────────────────────────────────────────────────────────────────┐
-│ [1][2][3]        ⇣1.2M ⇡340K   MEM 34%   CPU 12%   US   Mon Aug 3  14:37 ● │
-└───────────────────────────────────────────────────────────────────────┘
-  workspace     NET ↓/↑ (1s)   memory (5s)   cpu (1s)   layout   date   clock
-  pills (left)  (icons: MDI font)            stats cluster (right) + tray
-```
-
-- **Workspace pills** — **dynamic**: only workspaces holding windows plus
-  the active one appear, numbered with plain digits (name appended if set).
-  Active = dark pill, urgent = red, idle = teal, hover = green. Click to
-  switch.
-- **Stats cluster** (waybar right modules, Material Design Icons glyphs
-  from the `fonts-materialdesignicons-webfont` apt package): NET
-  `↓` red / `↑` green (1 s), MEM yellow, CPU orange, keyboard layout purple
-  (5 s), date teal, clock with red icon (1 s).
-- **System tray** (status notifier items): left-click activate, middle
-  secondary, right-click menu, scroll to scroll. Auto-hides when empty.
-
-**Bottom bar** (`Taskbar.qml`, 44 px, docked at the bottom edge):
-
-```
-┌───────────────────────────────────────────────────────────────────────┐
-│ ▦   [app icon][app icon][app icon]          (icons only, 46px buttons)│
-└───────────────────────────────────────────────────────────────────────┘
- launcher (grid)     window taskbar — ICONS ONLY; letter fallback when
-                      an app has no icon; focus/hover = green underline
-```
-
-- Both bars are full-width and the **off-screen side sweeps in one big
-  curve** (radius = full bar height, drawn with `Canvas`) until it just
-  touches the screen edge at the corner points.
-
-### 🔌 How it talks to niri
-
-No special plugin — it communicates with niri over its IPC and reads `/proc`
-for stats, all through `Quickshell.Io.Process`:
-
-```
-top bar    read:  niri msg -j workspaces        → JSON → workspace pills
-                  niri msg -j keyboard-layouts   → JSON → layout short name
-                  /proc/stat  + /proc/meminfo    → CPU % · MEM %
-                  /proc/net/dev                  → NET ↓/↑ bandwidth
-        write:  niri msg action focus-workspace <id>   (on pill click)
-bottom bar read:  niri msg -j windows            → JSON → taskbar buttons
-        write:  niri msg action focus-window --id <id>   (left-click)
-               niri msg action close-window --id <id>    (middle/right)
-```
-
-- The read loops: `Process` with `stdout: SplitParser` (fires per output
-  line). `onRunningChanged: if (!running) running = true` makes each **re-run
-  immediately** after completion — a lightweight polling loop, one spawn per
-  timer tick (workspaces/windows 1 s, net/cpu 1 s, mem/kbd 5 s).
-- Actions are fire-and-forget: set `command`, flip `running` on.
-
-> [!TIP]
-> **Why poll instead of `niri msg event-stream`?** Simpler and more robust: no
-> long-lived connection to manage, no JSON-event parsing, nothing to reconnect
-> after niri restarts. One `niri msg` per second costs nothing.
-
-### 📊 The data (what `niri msg -j workspaces` returns)
-
-```json
-[
-  {
-    "id": 1,
-    "name": "",
-    "output": "eDP-1",
-    "windows": [ { "app-id": "com.mitchellh.ghostty", "title": "...", "is-focused": true, ... } ],
-    "is-active": true,
-    "is-urgent": false
-  },
-  ...
-]
-```
-
-The top bar maps: `id` → pill id, `name` (or id) → pill label, `is-active` →
-highlight, `is-urgent` → red. The bottom bar maps each window's `id` →
-button, `title` → button text, and `is_focused` → the highlighted/pinned one.
-
-### 🛠️ Changing things
-
-| You want to… | Edit in `Bar.qml` or `Taskbar.qml` |
-|---|---|
-| re-theme | the `col*` properties at the top of each file (`colBar`, `colFg`, `colTile`, …) |
-| different bar height | `implicitHeight` and `exclusiveZone` (keep them equal) — the corner curve radius follows the height automatically |
-| add a module (battery, volume, …) | add a `Text`/`Process` + a `Timer`; see the clock pattern below |
-| show workspace names instead of numbers | set `label: ws.name` in `parseWorkspaces()` |
-| no workspace switching on click | delete the `MouseArea` in the pill |
-| live-test changes | save the file — quickshell hot-reloads instantly |
-
-### 🧩 Pattern cheatsheet (for adding modules)
-
-Clock (timer-driven text):
-
-```qml
-Text { text: root.clockText }
-Timer { interval: 1000; running: true; repeat: true
-        onTriggered: root.clockText = Qt.formatTime(new Date(), "HH:mm") }
-```
-
-Polled value (process-driven):
-
-```qml
-Process { id: p; command: [...]; stdout: SplitParser { onRead: d => { if (d) root.myValue = d.trim() } } }
-Timer { interval: 2000; running: true; repeat: true; onTriggered: p.running = true }
-```
-
-### 🔍 The app launcher
-
-`Launcher.qml` is a `PopupWindow` anchored below the bar. niri binds `Mod+R`
-to `spawn-sh "echo toggle >> /tmp/qs-launcher-toggle"`; the launcher watches
-that file with `Process { command: ["tail", "-n", "0", "-F", ...] }` and a
-`SplitParser`, toggling the popup on every new line. No daemons.
-
-- **Apps**: `DesktopEntries.applications` (.desktop files). It loads
-  *asynchronously* — wait for `applicationsChanged`, then copy `.values`
-  (it has no `.count`/`.get`).
-- **Icons**: Qt doesn't resolve theme icon names, so a `find` process over
-  `/usr/share/icons/hicolor` + `/usr/share/pixmaps` + `Adwaita` builds a
-  name→`file://` path map.
-- **Search**: the input filters `visibleApps`; Enter launches (`app.execute()`),
-  Esc closes, ↑/↓ navigate, click works too.
-- **Positioning**: `PopupWindow` has no `anchors` — set
-  `launcher.anchor.window = barWindow` and `anchor.rect.x/y` manually.
-- **`grabFocus`**: leave it `false`; `true` fails with "Failed to create
-  grabbing popup" on this build.
-
-### 💡 Why this design
-
-| Property | What it buys you |
-|---|---|
-| **One process** for the whole UI (~15 MB RSS) | minimal memory, no daemon coordination |
-| **No third-party anything** (no shell configs, plugins, notification daemons) | the compositor does notifications + screenshots itself |
-| **Plain QML + one documented command** (`niri msg`) | you can read, modify, and trust every line |
-
-### 🔄 Reloading
-
-Save any file — quickshell reloads automatically. If the bar disappears:
-
-```bash
-pgrep -a quickshell
-# if missing, restart the session (Mod+Shift+E quits niri, greetd gives you a fresh one)
-```
+Autostart apps: System Settings → Autostart (adds entries to `~/.config/autostart/`).
 
 ---
 
 ## ⌨️ Key Bindings
 
 > [!TIP]
-> **`Mod` = 👑 Super/Windows key.** Every single bind lives in `binds { }` in
-> `~/.config/niri/config.kdl` — this table reflects that file exactly.
-> Changed something? Just `niri msg action load-config-file`.
+> **KDE default bindings** (customize anytime in System Settings → Shortcuts;
+> they live in `~/.config/kglobalshortcutsrc`).
 
-### 🚀 Apps
+### 🚀 Apps & system
 
 | Keys | Action |
 |---|---|
-| `Mod+T` (or `Mod+Return`) | open Ghostty (terminal) |
-| `Mod+D` | open fuzzel (app launcher) |
-| `Mod+R` | open quickshell app launcher (see [🧱 The Quickshell Bar](#-the-quickshell-bar)) |
-| `Mod+S` | screenshot (drag to select area) |
-| `Ctrl+Space` | kando pie menu (needs kando) |
-| `XF86Tools` / `XF86Explorer` / `XF86Mail` | open spotify / nemo / thunderbird (needs the apps) |
-| `Mod+Shift+/` | hotkey help overlay |
+| `Meta` (or `Alt+F2`) | KRunner launcher |
+| `Meta+Return` | Ghostty (terminal) |
+| `Print` / `Shift+Print` / `Alt+Print` | Spectacle screenshots (area / screen / window) |
+| `Ctrl+Alt+T` | konsole (replaced by ghostty in defaults) |
+| `Meta+E` | file manager (none installed — dolphin not in the lean set) |
+| `Ctrl+Esc` | system activity |
+
+### 🪟 Windows
+
+| Keys | Action |
+|---|---|
+| `Alt+Tab` | switch windows |
+| `Meta+Tab` | switch virtual desktops |
+| `Meta+Shift+Tab` | …backwards |
+| `Meta+Left/Right/Up/Down` | tile window to half/screen edge (KWin tiling) |
+| `Meta+W` | close window |
+| `Meta+Space` | switch input layout |
+| `Meta+PgUp/PgDn` | previous / next desktop |
+| `Meta+F11` | fullscreen |
+| `Meta+Shift+F11` | keep above others |
+| `Meta+F` | move window to desktop… |
 
 ### 🔊 Audio & brightness
 
-> [!WARNING]
-> **Audio is currently purged** from the machine (removed with the GNOME
-> cleanup on 2026-08-04). These binds work **after** you restore it:
-> `sudo apt install -y pipewire pipewire-pulse wireplumber`.
-
 | Keys | Action |
 |---|---|
-| `XF86AudioRaiseVolume` / `Lower` | volume ±5% (works when locked) |
-| `XF86AudioMute` | mute sink |
-| `XF86AudioMicMute` | mute mic |
-| `XF86AudioNext` / `Prev` / `Play` / `Pause` / `Stop` | playerctl media control (needs playerctl) |
-| `XF86MonBrightnessUp` / `Down` | brightness ±10% (works when locked) |
-
-### 🪟 Windows & columns
-
-| Keys | Action |
-|---|---|
-| `Mod+Q` | close window |
-| `Mod+H/J/K/L` (or arrows) | focus left / down / up / right |
-| `Mod+Shift+H/J/K/L` (or `Mod+Ctrl+H/J/K/L`) | move focused window left / down / up / right |
-| `Mod+Home` / `Mod+End` | first / last column |
-| `Mod+Ctrl+Home` / `Mod+Ctrl+End` | move column to first / last position |
-| `Mod+F` | fullscreen |
-| `Mod+Shift+F` | maximize column |
-| `Mod+Space` (or `Mod+Ctrl+V`) | toggle floating |
-| `Mod+Shift+V` | switch focus between floating and tiling |
-| `Mod+W` | toggle tabbed display in the column |
-| `Mod+[` / `Mod+]` | consume/expel window into/out of the column |
-| `Mod+,` / `Mod+.` | consume / expel |
-| `Mod+Ctrl+W` | cycle column width preset (1/3 · 1/2 · 2/3) |
-| `Mod+Ctrl+Shift+W` | …backwards |
-| `Mod+Ctrl+Shift+R` | cycle window height presets |
-| `Mod+Ctrl+R` | reset window height |
-| `Mod+-` / `Mod+=` | column width −/+ 10% |
-| `Mod+Shift+-` / `Mod+Shift+=` | window height −/+ 10% |
-| `Mod+Ctrl+F` | expand column to available width |
-| `Mod+C` | center column |
-| `Mod+Ctrl+C` | center all visible columns |
-
-### 🗂️ Workspaces
-
-| Keys | Action |
-|---|---|
-| `Mod+U` / `Mod+I` (or PgUp/PgDn) | previous / next workspace |
-| `Mod+Ctrl+Page_Down` / `Mod+Ctrl+Page_Up` | move column to previous / next workspace |
-| `Mod+1` … `Mod+0` | jump to workspace 1–10 |
-| `Mod+Shift+1` … `Mod+Shift+0` | move column to workspace 1–10 |
-| `Mod+O` | overview (bird's-eye view of all workspaces) |
-| `Mod+WheelUp/Down` | previous / next workspace |
-| `Mod+Ctrl+WheelUp/Down` | move column to workspace |
-| `Mod+WheelLeft/Right` | previous / next column |
-| `Mod+Ctrl+WheelLeft/Right` | move column |
-
-### 🖥️ Monitors (multi-screen)
-
-| Keys | Action |
-|---|---|
-| `Mod+Alt+Left/Right/Up/Down` | focus monitor left / right / up / down |
-| `Mod+Shift+Alt+Left/Right/Up/Down` | move column to monitor |
-
-### 📸 Screenshots
-
-| Keys | Action |
-|---|---|
-| `Print` | screenshot (drag to select area) |
-| `Ctrl+Print` | entire screen |
-| `Alt+Print` | focused window |
-
-Saved to `~/Pictures/Screenshots/` (see `screenshot-path` in the config).
+| `XF86AudioRaiseVolume/Lower` | volume ± (plasma-pa) |
+| `XF86AudioMute` | mute |
+| `XF86AudioNext/Prev/Play/Pause` | media control (KWin MPRIS) |
+| `XF86MonBrightnessUp/Down` | brightness ± (powerdevil) |
+| `XF86Display` | display config (kscreen) |
 
 ### 🔒 Session
 
 | Keys | Action |
 |---|---|
-| `Mod+Shift+E` (or `Mod+Shift+Q`) | quit niri (back to greetd login) |
-| `Ctrl+Alt+Delete` | quit niri |
-| `Mod+Shift+R` | reload config |
-| `Mod+Shift+P` | power off monitors |
-| `Mod+Escape` | toggle keyboard-shortcut inhibitor (for remote-desktop apps) |
-
-### 🖱️ Mouse actions
-
-| Where | Action |
-|---|---|
-| anywhere (hover) | **focus-follows-mouse** — no click needed to focus a window |
-| bar workspace pill | click = jump to that workspace |
-| touchpad | tap to click, natural (macOS-style) scrolling |
-| **top-left corner** | **hot corner → Overview toggle** (enabled in `gestures`) |
-
-### ➕ Adding/removing binds
-
-```bash
-# 1. Edit binds { } in ~/.config/niri/config.kdl
-# 2. Apply live (no restart, no reboot):
-niri msg action load-config-file
-```
-
-**Bind syntax:** `Mod+Key { action; }` → example: `Mod+P { spawn "ghostty"; }`.
-
-| Resource | What it gives |
-|---|---|
-| [niri Wiki → Configuration](https://niri-wm.github.io/niri/Configuration.html) | every action, in full |
-| hotkey overlay `Mod+Shift+/` | on-screen list of your current binds |
+| `Meta+L` | lock screen (kscreenlocker) |
+| `Ctrl+Alt+Del` | session menu |
+| `Ctrl+Alt+F2` | TTY escape hatch |
 
 > [!TIP]
-> The overlay (`Mod+Shift+/`) is the fastest way to check what's bound —
-> it reads live from the config, not from this doc.
+> The fastest way to check what's bound: System Settings → Shortcuts — it
+> reads live from the config files this repo tracks.
 
 ---
 
@@ -1251,22 +743,18 @@ The situation when this machine was set up:
 | Piece | Package | Needed for |
 |---|---|---|
 | Kernel modules (`nvidia`, `nvidia_drm`, `nvidia_modeset`) | `linux-modules-nvidia-595-*` | hardware access |
-| GL/EGL display stack | `libnvidia-gl-595` | niri + apps render on the dGPU |
+| GL/EGL display stack | `libnvidia-gl-595` | KWin + apps render on the dGPU |
 | `nvidia-smi` | `nvidia-utils-595` | monitoring, verification |
 | Firmware (GSP for Turing+) | `nvidia-firmware-595` | RTX 2060 is Turing (TU106) |
 
 Verify after install:
 
 ```bash
-nvidia-smi          # must print a driver table, not "command not found"
+nvidia-smi          # must print a driver table
 lsmod | grep nvidia # nvidia, nvidia_drm, nvidia_modeset loaded
-dpkg -l | grep nvidia-driver
 ```
 
 ### 1️⃣ Step 1 — kernel command line: `nvidia-drm.modeset=1`
-
-The kernel needs NVIDIA modesetting enabled for the dGPU to do full compositing
-(memory management + GBM buffer sharing with the iGPU).
 
 ```bash
 sudoedit /etc/default/grub
@@ -1277,16 +765,17 @@ sudo update-grub
 Verify after reboot:
 
 ```bash
-cat /proc/cmdline          # should contain nvidia-drm.modeset=1
+cat /proc/cmdline                        # should contain nvidia-drm.modeset=1
 cat /sys/module/nvidia_drm/parameters/modeset   # should print Y
 ```
 
 ### 2️⃣ Step 2 — VRAM heap reuse fix (required, do not skip)
 
 > [!IMPORTANT]
-> The NVIDIA driver has a quirk: compositors like niri that recycle buffers
-> cause the driver to hoard VRAM (**1 GiB+** instead of ~100 MiB). The fix is a
-> per-process application profile that disables the heap reuse heuristic.
+> The NVIDIA driver has a quirk: compositors that recycle buffers cause the
+> driver to hoard VRAM (**1 GiB+** instead of ~100 MiB). The fix is a
+> per-process application profile. **The process name must match the
+> compositor — `kwin_wayland`** since the 2026-08-06 migration.
 
 ```bash
 sudo mkdir -p /etc/nvidia/nvidia-application-profiles-rc.d
@@ -1294,7 +783,7 @@ sudo tee /etc/nvidia/nvidia-application-profiles-rc.d/50-limit-free-buffer-pool-
 {
   "rules": [
     {
-      "pattern": { "feature": "procname", "matches": "niri" },
+      "pattern": { "feature": "procname", "matches": "kwin_wayland" },
       "profile": "Limit Free Buffer Pool On Wayland Compositors"
     }
   ],
@@ -1310,7 +799,7 @@ sudo tee /etc/nvidia/nvidia-application-profiles-rc.d/50-limit-free-buffer-pool-
 EOF
 ```
 
-Restart niri (or reboot) afterwards. Check VRAM usage with `nvtop` or
+Restart the session (or reboot) afterwards. Check with
 `watch -n 2 nvidia-smi` — should stay near ~100 MiB.
 
 ### 3️⃣ Step 3 — user groups
@@ -1319,17 +808,14 @@ Restart niri (or reboot) afterwards. Check VRAM usage with `nvtop` or
 sudo usermod -aG video,render diskukumber
 ```
 
-Verify with `groups` (takes effect after next login).
-
 ### 🔀 How the two GPUs cooperate
 
 | Piece | Role |
 |---|---|
 | **Intel iGPU** | the laptop panel (eDP) is wired to it — it always drives the panel (scanout) |
-| **NVIDIA dGPU** | niri renders with it via EGL/GBM (compute + games offload here) |
+| **NVIDIA dGPU** | KWin renders with it via EGL/GBM (compute + games offload here) |
 
-This works **without any X11 config** — Wayland compositors handle multi-GPU
-natively.
+This works **without any X11 config** — KWin handles multi-GPU natively.
 
 ### 🛠️ Diagnostic commands
 
@@ -1339,50 +825,51 @@ natively.
 | `lsmod \| grep nvidia` | module state |
 | `cat /sys/module/nvidia_drm/parameters/modeset` | `Y` = modesetting on |
 | `dmesg \| grep -i nvidia` | kernel messages |
-| `journalctl -b \| grep -iE "nvidia\|egl"` | boot-log mentions |
+| `journalctl -b \| grep -iE "nvidia\|egl\|kwin"` | boot-log mentions |
 | `ls /dev/dri/` | `card0` = Intel, `card1` = NVIDIA |
 
 ### ⚠️ Known quirks
 
 | Quirk | Status |
 |---|---|
-| Screencast flickering on NVIDIA | ✅ fixed upstream in niri ≥ 25.08 — nothing to do |
+| Screencast/window-capture on NVIDIA | works with `xdg-desktop-portal-kde` + KWin (GPU screen recording) |
 | Suspend issues on some dual-GPU laptops | if suspend misbehaves: check `nvidia-smi` power state + kernel logs; a reboot usually clears it |
-| VRAM heap | the profile must match the process name `niri` **exactly** |
+| VRAM heap | the profile must match the process name `kwin_wayland` **exactly** |
 
 ---
 
 ## 🚧 Work In Progress
 
 > [!NOTE]
-> **What "done" means here:** the desktop is fully usable today — compositor,
-> bar, launcher, NVIDIA, screenshots, notifications. The open items below are
-> refinements and decisions, not blockers.
+> **What "done" means here:** the desktop is fully usable today — Plasma,
+> SDDM, NVIDIA, screenshots, audio. The open items below are refinements and
+> decisions, not blockers.
 
 ### ✅ Done
 
-- [x] Minimal quickshell bar (workspaces, focused window title, clock).
-- [x] App launcher popup written in quickshell (Mod+R); fuzzel kept as fallback (Mod+D).
-- [x] Bar revamped as a waybar port: top bar = workspaces + stats cluster (NET/MEM/CPU/layout/date/clock) + system tray; bottom bar = app launcher + window taskbar; full-width bars with the off-edge side sweeping in a single full-height curve.
-- [x] NVIDIA desktop driver (replaces server variant) + VRAM heap fix.
-- [x] niri + quickshell stack runs (greetd path configured).
+- [x] niri + quickshell → **KDE Plasma 6** migration (full functional core, zero KDE apps, Wayland only).
+- [x] SDDM login manager (breeze) replaces greetd.
+- [x] NVIDIA driver + VRAM heap fix re-targeted at `kwin_wayland`.
+- [x] Audio restored (pipewire + wireplumber) for plasma-pa.
+- [x] Old stack purged: niri, quickshell, fuzzel, greetd, xwayland-satellite, wallpaper helpers, 2 PPAs.
+- [x] `udisks2` dormant-at-idle (D-Bus on-demand, no boot daemon).
+- [x] No indexers: `baloo` daemon not installed.
 
 ### 🚧 Open
 
-- [ ] **greetd currently disabled** — decide: `sudo systemctl enable --now greetd` (auto-login) or keep manual `niri-session` start.
-- [ ] Restore audio (pipewire/wireplumber was purged with the GNOME cleanup) + volume keys via `wpctl`.
-- [ ] Wallpaper layer (optional quickshell backdrop; solid `#111111` for now).
+- [ ] **Panel/layout finalization** — arrange panels + widgets to taste (top bar vs bottom taskbar, tray items), then back the layout into this repo.
+- [ ] **Theme** — decide Breeze vs a Gruvbox-adjacent color scheme (`kdeglobals`); back it up to the repo.
+- [ ] **Shortcuts** — confirm/override KDE defaults to taste (`kglobalshortcutsrc`).
+- [ ] Wallpaper — Plasma's own wallpaper engine; pick one (or keep the dark default).
 - [ ] Bluetooth: not installed yet (bluez optional).
-- [ ] Screen locker (none yet — `Mod+Shift+E` quits back to greetd).
+- [ ] Autostart list: confirm what starts with the session.
 
 ### 📆 Release cadence
 
 > [!TIP]
 > **Interim releases, every 6 months:** `sudo do-release-upgrade` to the next
 > Ubuntu interim release — Fedora-style cadence, apt-based, no dnf/rpm.
-> Each release gets ~9 months of support. The switch is `Prompt=normal` in
-> `/etc/update-manager/release-upgrades` (already set, see step 4 of
-> [📥 Installation](#-installation)).
+> The switch is `Prompt=normal` in `/etc/update-manager/release-upgrades`.
 
 ---
 
@@ -1394,33 +881,26 @@ natively.
 |  |  |
 | :-- | --- |
 | 🖥️ Distribution | [Ubuntu](https://ubuntu.com/) interim (6-month release cadence) — Server minimal |
-| 📦 Package manager | [nala](https://gitlab.com/volian/nala) — pretty apt frontend (mirrors in `/etc/nala/sources.list`, aliases in `~/.bash_aliases`) |
-| 🪟 Compositor | [niri](https://niri-wm.github.io/niri/) (scrollable tiling, pure Wayland) |
+| 📦 Package manager | [nala](https://gitlab.com/volian/nala) — pretty apt frontend |
+| 🪟 Desktop | [KDE Plasma 6](https://kde.org/plasma-desktop/) — full core, Wayland only |
+| 🪟 Compositor | [KWin](https://invent.kde.org/plasma/kwin) (`kwin_wayland`, Plasma 6.6.6) |
 | 💻 Terminal Emulator | [Ghostty](https://ghostty.org/) (native Wayland, GPU-accelerated) |
-| 🚀 Applications launcher | [quickshell](https://quickshell.org/) popup (Mod+R) • [fuzzel](https://codeberg.org/dnkl/fuzzel) (Mod+D) |
-| 🧱 Bar / Shell | [quickshell](https://quickshell.org/) — hand-written `shell.qml` / `Bar.qml` / `Taskbar.qml` (~990 lines, waybar-style) |
+| 🚀 Applications launcher | [KRunner](https://kde.org/plasma-desktop/) (Meta) — Plasma's built-in |
+| 🧱 Shell / Bar | [plasmashell](https://kde.org/plasma-desktop/) — panels + widgets |
 | 🌍 Browser | [Helium](https://github.com/imputnet/helium-linux) (Chromium fork, real .deb) |
-| 🔑 Login Manager | [greetd](https://sr.ht/~kennylevinsen/greetd/) (text greeter: agreety — installed; **currently disabled**, enable with `sudo systemctl enable --now greetd`) |
-| 🔔 Compositor notifications | niri (built-in) |
-| 📸 Screenshots | niri (built-in: `Print` family) |
-| 📋 Clipboard Manager | [wl-clipboard](https://github.com/bugaevc/wl-clipboard) (`wl-copy` / `wl-paste`) |
-| 🖼️ Wallpaper | [awww](https://codeberg.org/hurlbutt/awww) (images/GIFs, built from source) • [pandora](https://github.com/PandorasFox/pandora) (parallax scroll) — swap with `wp` / `wp --parallax` |
-| 🔐 Authentication agent | polkitd |
-| 🌐 Network management | [NetworkManager](https://networkmanager.dev/) + `wpa_supplicant` |
-| 📡 Bluetooth | not installed — optional; add later with `sudo apt install bluez bluez-utils` (not part of the lean base) |
-| 🔊 Audio control | pipewire + wireplumber (purged 2026-08-04, needs restore — see [🚧 Work In Progress](#-work-in-progress)) |
-| 🔋 Power management | nvidia-powerd (nvidia-suspend/resume/hibernate units) |
+| 🔑 Login Manager | [SDDM](https://github.com/sddm/sddm) (breeze theme) |
+| 🔔 Notifications | Plasma notifications (native) |
+| 📸 Screenshots | [KDE Spectacle](https://apps.kde.org/spectacle/) |
+| 📋 Clipboard Manager | Plasma clipboard (history) + wl-clipboard |
+| 🖼️ Wallpaper | Plasma's wallpaper engine (native) |
+| 🔐 Authentication agent | polkit-kde-agent-1 |
+| 🌐 Network management | [NetworkManager](https://networkmanager.dev/) + plasma-nm applet |
+| 📡 Bluetooth | not installed — optional (`bluez bluez-utils`) |
+| 🔊 Audio | pipewire + pipewire-pulse + wireplumber (restored 2026-08-06) + plasma-pa |
+| 🔋 Power management | [powerdevil](https://invent.kde.org/plasma/powerdevil) (profiles + backlight) |
 | 🎮 Graphics | Intel UHD (iGPU, drives panel) + NVIDIA RTX 2060 Mobile (dGPU, renders via nvidia-driver-595) |
-| 🖥️ Display stack | pure Wayland; `xwayland-satellite` for rare X11 apps |
+| 🖥️ Display stack | pure Wayland; no kwin-x11, no xserver-xorg |
 </details>
-
-> [!TIP]
-> **Wallpaper** (`wp` on PATH, works from any terminal):
-> - `wp <file>` — set image or animated GIF via **awww** (covering every connected output)
-> - `wp --parallax <file>` — static image with parallax workspace-scroll via **pandora**
-> - `wp stop` — clear
-> - Restored automatically at session start (niri `spawn-at-startup`); last file + mode live in `~/.cache/wp-current` / `~/.cache/wp-mode`
-> - **Known quirk**: pandora logs one benign `unknown variant CastsChanged` IPC warning on niri (harmless — scroll still works)
 
 ---
 
@@ -1431,223 +911,106 @@ natively.
 | # | Rule | Why |
 |---|---|---|
 | 1 | **Everything logs somewhere** — check logs before touching anything | you avoid blind changes; the log usually names the exact cause |
-| 2 | **The bar and compositor reload instantly** — editing a config is usually enough | only kernel/driver changes need a reboot |
+| 2 | **Plasma reloads fast** — `plasmashell --replace` or re-login is usually enough | only kernel/driver changes need a reboot |
 | 3 | **TTY rescue**: `Ctrl+Alt+F2` → log in → full terminal even if the desktop is dead | the escape hatch for every session-level problem |
 
 ### 🩺 Symptom → fix table
 
 | Symptom | Likely cause → fix |
 |---|---|
-| Black screen after login | niri failed to start. On tty2: `systemctl --user status niri`, `journalctl --user -u niri -b -e`. See [🎮 NVIDIA](#-nvidia) notes. |
-| Desktop works, no bar | quickshell didn't start. On tty2: `pgrep -a quickshell`; run `quickshell` manually to see QML errors. |
-| Greetd fails in a loop | `journalctl -u greetd -b -e`. Usually a session that exits instantly. `sudo systemctl restart greetd` after fixing the cause. |
-| GPU fans spin, high idle power | `nvidia-smi` — check `nvidia` isn't rendering when it shouldn't; VRAM fix missing? See [🎮 NVIDIA](#-nvidia). |
-| ~1 GiB VRAM used by niri | The GLVidHeapReuseRatio fix isn't applied or the process name changed. Re-check [🎮 NVIDIA](#-nvidia) Step 2 and restart niri. |
-| Volume keys do nothing | `wpctl status` — is there a default sink? Wireplumber running? `systemctl --user status wireplumber`. |
-| Brightness keys do nothing | `brightnessctl` not installed or the panel isn't exposed (`brightnessctl --list`). |
-| Screenshots save nowhere | `~/Pictures/Screenshots` missing? `mkdir -p ~/Pictures/Screenshots`. |
-| Bar shows no workspaces | `niri msg -j workspaces` from a terminal — does it return JSON? If "no niri instance", the compositor isn't running. |
-| Bar shows stale workspaces | quickshell's polling loop died (rare). `quickshell` in the terminal shows the error; restart the session. |
-| Ghostty doesn't open | `ghostty` from a terminal to see errors (missing font = install `fonts-jetbrains-mono`). |
-| Apps look wrong / huge | Missing fonts → `fc-list | grep Inter`; install `fonts-inter`. |
-| Bluetooth audio glitches | `systemctl --user status pipewire wireplumber`; reboot if needed. |
-| Suspend/resume broken | Known hybrid-GPU quirk. `journalctl -b -1 | grep -i nvidia`; reboot usually clears it. |
+| Black screen after login | KWin failed to start. On tty2: `pgrep -a kwin_wayland`, `journalctl --user -b -e \| grep -i kwin`. See [🎮 NVIDIA](#-nvidia) notes. |
+| Desktop works, no panels | `plasmashell --replace` from a terminal (or Alt+F2 → krunner → run command). |
+| SDDM fails in a loop | `journalctl -u sddm -b -e`. Usually a bad session file or theme. `sudo systemctl restart sddm` after fixing the cause. |
+| GPU fans spin, high idle power | `nvidia-smi` — check the dGPU isn't rendering when it shouldn't; VRAM fix missing? See [🎮 NVIDIA](#-nvidia). |
+| ~1 GiB VRAM used by kwin_wayland | The GLVidHeapReuseRatio fix isn't applied or the process name changed. Re-check [🎮 NVIDIA](#-nvidia) Step 2 and restart the session. |
+| Volume keys do nothing | `wpctl status` — is there a default sink? `systemctl --user status pipewire wireplumber`. plasma-pa applet present? |
+| Brightness keys do nothing | powerdevil running? `systemctl --user status powerdevil`. |
+| Screenshots save nowhere | `mkdir -p ~/Pictures/Screenshots`; check Spectacle settings. |
+| Network applet missing | plasma-nm installed? `systemctl status NetworkManager`. |
+| Apps look wrong / huge | Missing fonts → `fc-list \| grep Inter`; install `fonts-inter`. |
+| Bluetooth audio glitches | `systemctl --user status pipewire wireplumber`; reboot if needed (bluez not installed — see WIP). |
+| Suspend/resume broken | Known hybrid-GPU quirk. `journalctl -b -1 \| grep -i nvidia`; reboot usually clears it. |
 
 ### ⚠️ Known issues
 
 | Issue | Status / workaround |
 |---|---|
-| 🚪 **greetd is currently disabled** | desktop must be started manually (`niri-session -l` from a TTY/shell) or greetd re-enabled (`sudo systemctl enable --now greetd`) |
 | 💤 **Suspend/resume** can glitch on this dual-GPU laptop | a reboot usually clears it |
-| 🐧 Some **X11 apps** misbehave under pure Wayland | XWayland edge cases; run them via `xwayland-satellite` |
-| 🎮 **NVIDIA VRAM heap quirk** (~1 GiB hoarded by compositors) | fixed by the application-profile JSON in [🎮 NVIDIA](#-nvidia); the profile must match `niri` |
-| 🔇 **Audio purged** (2026-08-04, GNOME cleanup) | reinstall `pipewire pipewire-pulse wireplumber`; volume keys use `wpctl` |
-
-### 🎮 NVIDIA-specific
-
-| Symptom | Fix |
-|---|---|
-| **Black screen on start** | modeset missing → add `nvidia-drm.modeset=1` ([🎮 NVIDIA](#-nvidia) Step 1), `sudo update-grub`, reboot |
-| **High VRAM** | re-apply the profile JSON ([🎮 NVIDIA](#-nvidia) Step 2), restart niri |
-| **nvidia-smi missing** | driver package not installed — `sudo apt install nvidia-driver-595` |
-
-```bash
-nvidia-smi                                    # driver alive? VRAM usage?
-lsmod | grep nvidia                           # modules loaded?
-cat /sys/module/nvidia_drm/parameters/modeset # Y = modeset on (reboot needed to change)
-cat /proc/cmdline                             # nvidia-drm.modeset=1 present?
-```
+| 🎮 **NVIDIA VRAM heap quirk** (~1 GiB hoarded by compositors) | fixed by the application-profile JSON in [🎮 NVIDIA](#-nvidia); the profile must match `kwin_wayland` |
+| 🚪 **No file manager** installed (dolphin skipped for leanness) | `udisks2` is dormant-but-available; mount with `udisksctl` from the terminal or install dolphin later |
+| 🐧 Some **X11 apps** may misbehave | KWin ships xwayland as a hard dep — X11 apps run under it automatically (not rootless-satellite anymore) |
 
 ### 🔬 Checking the whole stack at once
 
 ```bash
-# one-liner status report
-systemctl status greetd --no-pager | head -3
-systemctl --user status niri --no-pager | head -3
-pgrep -a quickshell
-niri msg -j workspaces | head -20
+systemctl status sddm --no-pager | head -3
+pgrep -a kwin_wayland
+pgrep -a plasmashell
 wpctl status | head -10
 nvidia-smi | head -10
+kscreen-doctor -o
 ```
 
 ### 📁 Log locations
 
 | Component | Where |
 |---|---|
-| greetd (login) | `journalctl -u greetd -b` |
-| niri (compositor) | `journalctl --user -u niri -b` |
-| quickshell (bar) | run `quickshell` from a terminal; also `journalctl --user -u quickshell` if a unit exists |
+| SDDM (login) | `journalctl -u sddm -b` |
+| KWin (compositor) | `journalctl --user -b` (grep kwin) |
+| plasmashell (panels) | `plasmashell --replace` in a terminal shows errors |
 | pipewire / wireplumber | `journalctl --user -u pipewire -b`, `-u wireplumber` |
-| kernel (drivers, GPUs) | `dmesg | grep -iE "nvidia|drm|i915"` |
+| kernel (drivers, GPUs) | `dmesg \| grep -iE "nvidia|drm|i915"` |
 
 ### 🧯 Recovery recipes
 
 | Situation | The move |
 |---|---|
-| **Desktop frozen** | `Ctrl+Alt+F2` → log in on tty2 → kill the session (below) |
-| **Session won't quit** | `systemctl --user start niri-shutdown.target` (clean) or `pkill -u $USER niri` (hard) |
-| **Bar broken/disappeared** | `pkill -f "quickshell"` then re-login (niri won't restart it itself) |
-| **Bar errors invisible** | run `quickshell` in a terminal — errors print right there |
-
-**Kill the session from a TTY:**
-
-```bash
-# on tty2 (Ctrl+Alt+F2)
-systemctl --user start niri-shutdown.target   # cleanly stop the session
-# or
-pkill -u $USER niri                            # hard way
-```
-
-**Reset a broken bar:**
-
-```bash
-pkill -f "quickshell"    # niri will not restart it — instead:
-# restart the session from the login screen (Mod+Shift+E → log in again)
-```
-
-**Test the bar config standalone** (errors print to the terminal):
-
-```bash
-quickshell   # from a TTY inside the session or a nested terminal
-```
+| **Desktop frozen** | `Ctrl+Alt+F2` → log in on tty2 → `loginctl terminate-session $SESSION` or reboot |
+| **Panels broken/disappeared** | `plasmashell --replace` (or from tty2: `DISPLAY=… wayland` — simpler: re-login) |
+| **KWin crash loop** | on tty2: `journalctl --user -b -e`; disable the newest effect (kwinrc), re-login |
+| **SDDM unresponsive** | `sudo systemctl restart sddm` from tty2 |
 
 ### ❓ Still stuck?
 
-Check the niri wiki FAQ (<https://niri-wm.github.io/niri/FAQ.html>) and the
-quickshell docs (<https://quickshell.org/>), then **search the exact error
-line** from the logs — it's usually a known issue.
-
-> [!TIP]
-> **How to report a bug worth solving:** paste the full `journalctl --user -u
-> niri -b -e` tail (or the quickshell error) — that one line usually contains
-> the answer already.
+KDE userbase (<https://userbase.kde.org/>) and the Plasma docs
+(<https://docs.kde.org/>), then **search the exact error line** from the logs.
 
 ---
 
 ## 🧹 Maintenance & Service Inventory
 
 What's running, what can be trimmed, and the routine care this system needs.
-Last audited: 2026-08-06 (base audit + snapshot refresh, see [🔎 Base audit](#-base-audit-done-2026-08-06--start-clean-verification)).
-
-### 🧽 One-time cleanup (done 2026-08-04)
-
-All applied, review-first. How it was done:
-
-<details>
-<summary>🛠️ The cleanup steps (review-first, safe to re-run)</summary>
-
-```bash
-# 1. Remove unused automatic packages (nvidia-firmware-595-server)
-sudo apt-get autoremove -y --purge
-
-# 2. Remove optional packages not needed on this setup (dry-run first)
-sudo apt-get remove --dry-run lxd-installer open-iscsi multipath-tools modemmanager
-# apply with: sudo apt-get remove --purge lxd-installer open-iscsi multipath-tools modemmanager
-
-# 3. Disable services that are leftovers from the server image
-sudo systemctl disable --now kdump-tools multipathd ModemManager apport snapd snapd.socket
-
-# 4. Purge cloud-init (provisioning leftovers, unused on bare metal)
-sudo apt-get purge cloud-init -y && sudo rm -rf /etc/cloud /var/lib/cloud
-
-# 5. Clean apt + npm caches
-sudo apt-get clean
-sudo rm -rf /var/lib/apt/lists/*
-sudo apt-get update
-npm cache clean --force
-
-# 6. Trim journal logs (keep last 200 MB)
-sudo journalctl --vacuum-size=200M
-
-# 7. Review ~/.cache before deleting (small, usually skipped)
-du -sh ~/.cache
-```
-</details>
-
-| Item | What | Status |
-|---|---|---|
-| `nvidia-firmware-595-server` | auto-installed server firmware, unused with the desktop driver | ✅ **removed** (103 MB freed) |
-| `lxd-installer` | LXD snap wrapper; no containers are used | ✅ **removed** |
-| `open-iscsi`, `multipath-tools`, `modemmanager` | iSCSI/SAN/mobile-broadband leftovers from the server image | ✅ **removed** |
-| `cloud-init` + `cloud-init-base` | cloud provisioning; unused on bare metal (5 services) | ✅ **purged** |
-| `snapd` | running with **0 snaps installed** | ✅ **purged** (7 services) |
-| `kdump-tools`, `apport` (+core-dump-handler, +symptoms) | crash dump/reporting, no value here | ✅ **purged** (was: disabled) |
-| `pollinate`, `avahi-daemon`, `udisks2`, `networkd-dispatcher`, `unminimize` | Canonical/server leftovers | ✅ **purged** |
-| `nautilus`, `gvfs*`, `xdg-desktop-portal-gnome`, `ipp-usb` | GNOME file-manager/portal chain (niri Recommends) | ✅ **purged** |
-| `evolution-data-server` (+libs), `bluez-obexd`, `localsearch` | GNOME calendar/indexer chain (via gnome-keyring) — 5 user services stopped | ✅ **purged** |
-| apt cache | 834 MB of `.deb` archives + lists | ✅ **cleaned** (56 KB now) |
-| npm cache | 86 MB | ✅ **cleared** |
-| autoremove sweep | packagekit, usb-modeswitch, snapd-glib deps, appstream, etc. | ✅ **purged** (46 pkgs) |
-| journal | 25 MB | ✅ already small, vacuumed |
-
-> [!NOTE]
-> **Net effect of the cleanup:** ~200 MB + 46 packages freed; enabled services
-> went **60 → 43 → 30** (verified 2026-08-04, after the full steps-3/5f purge).
+Last audited: 2026-08-06 (niri→Plasma migration + base audit).
 
 ### 🔎 Base audit (done 2026-08-06) — "start clean" verification
 
 Re-verified the whole base against the steps-3/5f purge lists and hunted for
-undocumented leftovers. Result: the base is clean — every documented purge
-applied, no snaps, no cloud-init, no failed units, no autoremove candidates.
+undocumented leftovers before the migration. Result: the base was clean — no
+snaps, no cloud-init, no failed units, no autoremove candidates. The audit
+removed 31 packages + 8 dead entries, freed ~1.2 GB, and pinned snapd out of
+existence (`Pin-Priority: -10`; `apt-cache policy snapd` → candidate `(none)`).
+
+### 🔁 The migration audit (2026-08-06) — what the swap changed
 
 | Item | What it was | Status |
 |---|---|---|
-| `grim` | screenshot tool — **redundant** (niri has built-in `Print` screenshots; the README even listed grim as *not* installed) | ✅ **removed** |
-| `fastfetch` | system-info fetcher, never configured or invoked | ✅ **removed** |
-| `python3-fonttools` + `python3-ufolib2` | orphaned font tooling (self-contained pair, nothing depended on them) | ✅ **removed** |
-| python numeric stack | 31 auto-installed orphans of earlier purges: `python3-numpy` (+dev), `python3-sympy`/`mpmath`, `libblas3`/`liblapack3`, `libgfortran5`, `python3-pil`, `python3-lxml`/`bs4`, `isympy`, … — nothing depended on them | ✅ **autoremoved** |
-| `pollinate` config files (`rc` state) + `/etc/pollinate` | leftovers from step 3b (purged package, config remained) | ✅ **purged** |
-| `/etc/cloud` + `/var/lib/cloud` | leftover dirs — step 3b's `rm -rf` had not fully applied | ✅ **removed** |
-| apt cache + lists | 614 MB of `.deb` archives + 143 MB of lists | ✅ **cleaned** (56 KB now, lists refreshed) |
-| helium browser cache | 278 MB (`~/.cache/net.imput.helium`) | ✅ **cleared** |
-| `~/.cache/tracker3` | leftover from the purged `localsearch` indexer | ✅ **removed** |
-| `gh` (GitHub CLI) | authenticated dev tool — was installed but undocumented | ✅ **kept + documented** (package inventory) |
-
-**Second pass — the full inventory sweep:** every installed package was
-checked against the documented base + stack (via `apt-mark showmanual`,
-`apt-cache rdepends`, and the full `dpkg` list). **All 967 packages are
-accounted for** — every undocumented one is a legitimate dependency of a
-documented component (e.g. `screen` ← `ubuntu-release-upgrader-core`,
-`bpftrace`/`bpfcc-tools` ← `ubuntu-kernel-accessories`, `fuzzel` ← `niri`,
-`colord` ← the GTK portal chain, `packagekit`/`appstream` ←
-`software-properties-common` — needed for the PPA; daemon is inactive).
-
-| Item | What it was | Status |
-|---|---|---|
-| 8 dead package entries (`rc` state) | config files of long-removed packages: old kernel `7.0.0-14` (image/modules/zfs), the `nvidia-*-595-server` driver swap leftovers, `grub-pc` (we're UEFI) | ✅ **purged** — dpkg database now 0 `rc` entries |
-| `/etc/multipath` | leftover config dir from the purged `multipath-tools` | ✅ **removed** |
-| `~/.config/dconf` · `evolution` · `goa-1.0` · `nautilus` · `pulse` | GNOME/pulseaudio user-config leftovers (pulse was purged with audio) | ✅ **removed** |
-| **snap reinstall risk** | nothing prevents `apt` from pulling `snapd` back as a dep | ✅ **pinned** — `/etc/apt/preferences.d/no-snap.pref` (`Pin-Priority: -10`); `apt-cache policy snapd` → candidate `(none)` |
+| `niri` + `quickshell` + `fuzzel` + `greetd` + `xwayland-satellite` | the old compositor/shell/login stack | ✅ **purged** |
+| `xdg-desktop-portal-gtk` | GNOME portal backend — Plasma uses the kde portal | ✅ **purged** |
+| `playerctl` · `brightnessctl` | niri-era media/brightness tools — KWin/powerdevil do this natively | ✅ **purged** |
+| `awww`/`pandora` + `wp` scripts | wallpaper helpers — Plasma has its own wallpaper | ✅ **removed** |
+| `danklinux` + `hyprland` PPAs | niri/quickshell source + an unused hyprland PPA | ✅ **removed** |
+| `udisks2` (re-pulled by plasma-workspace) | storage daemon — Plasma hard-dep | ✅ **kept dormant** (D-Bus on-demand, not enabled at boot) |
+| `baloo` indexer | Plasma file search daemon | ✅ **never installed** — libs only, no daemon |
+| NVIDIA VRAM profile | `niri` → `kwin_wayland` process name | ✅ **re-targeted** |
+| audio | purged 2026-08-04 | ✅ **restored** (pipewire + wireplumber) |
 
 > [!NOTE]
-> **Net effect of the audit:** ~1.2 GB freed (packages + caches + dirs) and
-> **31 packages + 8 dead entries** removed; enabled services unchanged at
-> **30**; snapshot refreshed 961 → **967 packages** (70 manual, 0 `rc`).
-> `grim` removal also makes the "not installed" table in
-> [🧩 Software stack](#-software-stack--package-inventory) true again —
-> screenshots are purely niri's.
+> **Net effect of the migration:** niri-era stack gone, Plasma core in.
+> Packages 967 → **1,445**, manual 70 → **92**, enabled services 27 → **28**
+> (only `sddm` added; `udisks2` disabled again), 0 `rc` entries, no snaps, no
+> Canonical junk — the base rules survived intact.
 
-### ⚙️ Service inventory (enabled, system — 30 currently)
+### ⚙️ Service inventory (enabled, system — 28 currently)
 
 **✅ Enabled now:** `NetworkManager` (+dispatcher/wait-online) · `chrony` ·
 `systemd-resolved` · `systemd-networkd` (+wait-online, netplan-configure) ·
@@ -1655,18 +1018,17 @@ documented component (e.g. `screen` ← `ubuntu-release-upgrader-core`,
 `nvidia-suspend/resume/hibernate/powerd` (hybrid graphics) · `wpa_supplicant` ·
 `accounts-daemon` · `lvm2-monitor` · `blk-availability` · `console-setup` ·
 `keyboard-setup` · `setvtrgb` · `e2scrub_reap` · `finalrd` · `grub2-common` ·
-`grub-initrd-fallback` · `secureboot-db` · `systemd-pstore` · `getty@`
+`grub-initrd-fallback` · `secureboot-db` · `systemd-pstore` · `getty@` · **`sddm`**
 
-**⏸️ Installed but not enabled:** `greetd` (login manager — **disabled**, see
-[🚀 Session Startup](#-session-startup))
+**⏸️ Dormant (D-Bus on-demand, not enabled):** `udisks2` (removable media —
+starts when something mounts a drive)
 
-**🗑️ Not installed (purged by steps 3 + 5f):** `cloud-init` · `snapd` ·
-`apport` · `kdump-tools` · `pollinate` · `avahi-daemon` · `udisks2` ·
-`networkd-dispatcher` · `unminimize` · `nautilus`/`gvfs*` ·
-`xdg-desktop-portal-gnome` · `evolution-data-server` · `localsearch` ·
-`multipath-tools`, `open-iscsi`, `ModemManager`, `lxd-installer` ·
-`power-profiles-daemon`, `systemd-oomd`, `switcheroo-control`, `bluez` (never
-installed)
+**🗑️ Not installed (purged):** `cloud-init` · `snapd` · `apport` · `kdump-tools` ·
+`pollinate` · `avahi-daemon` · `networkd-dispatcher` · `unminimize` ·
+`nautilus`/`gvfs*` · `xdg-desktop-portal-gnome` · `evolution-data-server` ·
+`localsearch` · `multipath-tools` · `open-iscsi` · `ModemManager` ·
+`lxd-installer` · `bluez` (never installed) · `niri` · `quickshell` · `fuzzel` ·
+`greetd` · `xwayland-satellite` · `baloo` (daemon)
 
 ### 📄 Dotfiles & config inventory
 
@@ -1674,19 +1036,19 @@ installed)
 |---|---|
 | `~/.bashrc` | prompt, history, `ll/la/l` aliases, opencode PATH (all stock Ubuntu) |
 | `~/.profile` | stock; sources `.bashrc`, adds `~/bin` + `~/.local/bin` to PATH |
-| `~/.config/niri/config.kdl` | compositor: keybinds, layout, startup |
+| `~/.config/kwinrc` | compositor: effects, window rules, screen edges |
+| `~/.config/plasma-org.kde.plasma.desktop-appletsrc` | panel layout + widgets |
+| `~/.config/plasmashellrc` | shell settings |
+| `~/.config/kglobalshortcutsrc` | key bindings |
+| `~/.config/kdeglobals` | colors, fonts, icons |
 | `~/.config/ghostty/config` | terminal: theme, font, opacity |
-| `~/.config/quickshell/shell.qml` + `Bar.qml` | the status bar |
 | `~/.config/opencode/opencode.jsonc` | opencode config (currently minimal) |
 | `~/.local/share/keyrings` | login keyring (used by libsecret) |
 | `~/.ssh/authorized_keys` | SSH keys (password login already off) |
-| `~/.npm` | npm cache (86 MB, cleaned) |
-| `~/.opencode` | opencode binary + system dir |
 
 Applied bash aliases (`~/.bash_aliases`, loaded by `.bashrc`):
 
 ```bash
-# type `apt` / `sudo apt …` and get nala:
 alias sudo='sudo '   # trailing space → expands the word after sudo too
 alias apt='nala'
 alias apt-get='nala'
@@ -1705,20 +1067,22 @@ nala update && nala upgrade   # weekly — security + updates
 nala autoremove               # monthly — drop orphaned deps
 journalctl --vacuum-size=200M # if the journal grows past 200 MB
 nvidia-smi                    # verify GPU health (VRAM, driver)
-systemctl --user status niri  # compositor health
+pgrep -a kwin_wayland         # compositor health
 ```
 
 > [!NOTE]
-> **What each command watches over:** `nala` keeps the ~967 packages patched,
-> `journalctl` bounds disk, `nvidia-smi` catches the VRAM quirk, and `niri`
-> status confirms the compositor survived the upgrade. None of these take more
-> than a minute.
+> **What each command watches over:** `nala` keeps the ~1,445 packages patched,
+> `journalctl` bounds disk, `nvidia-smi` catches the VRAM quirk, and the
+> kwin_wayland process confirms the desktop survived the upgrade. None of
+> these take more than a minute.
 
 ### ↩️ Rollback notes
 
-- Service disables are reversible: `sudo systemctl enable --now <svc>`
-- Removed packages: reinstall via `apt install <name>` (see [📥 Installation](#-installation))
-- cloud-init purge removes `/etc/cloud` + `/var/lib/cloud`; harmless on bare metal
+- The pre-Plasma state is preserved in git: tag **`pre-plasma`** (niri +
+  quickshell configs) — `git checkout pre-plasma` restores them.
+- To go back to niri: `sudo apt install niri quickshell` + re-add the
+  danklinux PPA (removed in step 9c).
+- Service disables are reversible: `sudo systemctl enable --now <svc>`.
 
 ---
 
@@ -1729,46 +1093,15 @@ This machine's state is reproducible from the commands in this document.
 ### 📦 The baseline (fresh Ubuntu Server Minimal)
 
 The baseline is defined by the `ubuntu-server-minimal` metapackage — **27
-direct dependencies** (verified against `apt-cache depends ubuntu-server-minimal`
-on the current interim release):
+direct dependencies** plus its Recommends (`hwctl` · `kdump-tools` ·
+`needrestart` · `unattended-upgrades`), plus the installer's base layer
+(kernel, grub-efi-amd64 + shim-signed, locales, nano).
 
-```
-apparmor          apt            bcache-tools     btrfs-progs
-apport            chrony         cloud-init       cryptsetup
-dbus              e2fsprogs      lvm2             mdadm
-multipath-tools   netbase        open-iscsi       snapd
-sudo / sudo-rs    systemd        systemd-resolved systemd-sysv
-ubuntu-drivers-common           ubuntu-release-upgrader-core
-udev              unminimize     xfsprogs
-```
-
-Plus its **Recommends** (installed alongside): `hwctl` · `kdump-tools` ·
-`needrestart` · `unattended-upgrades`.
-
-Of these, **step 3 of [📥 Installation](#-installation) purges** the Canonical
-extras and server leftovers: `cloud-init`, `snapd`, `apport`, `unminimize`,
-`open-iscsi`, `multipath-tools` + `kdump-tools` (a Recommends) — plus the
-installer-layer leftovers `modemmanager`, `avahi-daemon`, `udisks2`,
-`networkd-dispatcher` — leaving only the essentials (the full keep/remove
-inventory is in [step 2](#2️⃣-what-the-minimal-install-comes-with--the-full-inventory)).
-
-Plus the installer's base layer: `linux-generic` kernel, `grub-efi-amd64` +
-`shim-signed` (Secure Boot), `locales`, `nano`, `unattended-upgrades`,
-`needrestart`, `hwctl`, standard `util-linux`/`coreutils` set.
-
-**Default enabled services (fresh install):**
-
-```
-accounts-daemon  apparmor     apport         avahi-daemon
-blk-availability bluetooth    chrony         cloud-init-* (5 units)
-console-setup    e2scrub_reap finalrd        getty@
-gpu-manager      grub2-common kdump-tools    keyboard-setup
-lvm2-monitor     ModemManager multipathd     netplan-configure
-networkd-dispatcher          NetworkManager-* (3)
-open-iscsi       snapd.* (7)  switcheroo-control
-systemd-networkd* systemd-oomd systemd-pstore systemd-resolved
-thermald         udisks2      unattended-upgrades wpa_supplicant
-```
+**Step 3 of [📥 Installation](#-installation) purges** the Canonical extras
+and server leftovers: `cloud-init`, `snapd`, `apport`, `unminimize`,
+`open-iscsi`, `multipath-tools` + `kdump-tools`, plus the installer-layer
+leftovers `modemmanager`, `avahi-daemon`, `udisks2`, `networkd-dispatcher` —
+leaving only the essentials.
 
 **Default apt sources:**
 
@@ -1799,21 +1132,23 @@ authoritative, in-order command list:
 # Step 1-2: install Ubuntu Server "Minimized" from the ISO, verify it boots
 # Step 3:   strip to a pure base (purge snaps, cloud-init, leftovers)
 # Step 4:   switch to the interim cadence (Prompt=normal + do-release-upgrade)
-# Step 5:   repos + every package (niri, quickshell, ghostty, nvidia, fonts, …)
+# Step 5:   repos + every package (plasma-desktop core, ghostty, nvidia, fonts, …)
 # Step 6:   NVIDIA kernel cmdline + VRAM fix + groups
 # Step 7:   copy the configs from this repo into ~/.config/
-# Step 8:   sudo systemctl enable --now greetd  +  reboot
+# Step 8:   reboot → SDDM → Plasma (Wayland)
 ```
 
 **⏹️ Reset (undo everything, back to near-baseline):**
 
 ```bash
-sudo apt-get remove -y --purge alacritty brightnessctl fuzzel ghostty greetd helium-bin niri \
-  qml6-module-qtquick-layouts quickshell wl-clipboard \
-  fonts-inter fonts-jetbrains-mono fonts-noto-color-emoji fonts-noto-core
+sudo apt-get remove -y --purge plasma-desktop plasma-session-wayland kwin-wayland \
+  sddm sddm-theme-breeze kde-config-sddm systemsettings kscreen kio-extras \
+  kde-cli-tools powerdevil plasma-nm plasma-pa ksshaskpass polkit-kde-agent-1 \
+  breeze breeze-gtk-theme xdg-desktop-portal-kde kde-config-gtk-style \
+  kde-config-screenlocker kactivitymanagerd kmenuedit kde-spectacle kinfocenter \
+  ghostty helium-bin wl-clipboard pipewire pipewire-pulse wireplumber
 sudo apt-get purge --dry-run nvidia-driver-595   # review, then drop --dry-run
-sudo systemctl disable --now greetd network-manager wpa_supplicant
-sudo rm -f /etc/apt/sources.list.d/avengemedia-ubuntu-danklinux-resolute.sources
+sudo systemctl disable --now sddm network-manager wpa_supplicant
 sudo rm -f /etc/apt/sources.list.d/helium.list /usr/share/keyrings/helium.gpg
 sudo apt-get update && sudo apt-get autoremove --purge -y
 # (kernel + grub + base remain untouched)
@@ -1829,20 +1164,13 @@ sudo apt-get update && sudo apt-get autoremove --purge -y
 | `linux-generic` kernel, GRUB/EFI, Secure Boot | installer-level — never fiddled with |
 | `~/.ssh/authorized_keys` + `.bashrc` PATH line | personal access + your env stays intact |
 | Home data (`~/docs`, `~/Pictures`, …) | reset only touches system state |
-| `/etc/greetd/config.toml` | **not** restored by the reinstall path — copy it back manually (see [🚀 Session Startup](#-session-startup)) |
-
-### ✅ Post-reboot verification
-
-Run the [reinstall checklist](#-after-a-reinstall-checklist) below after any
-reboot — it proves the desktop came up end-to-end (greetd → niri → quickshell →
-NVIDIA → network).
+| Plasma configs (`~/.config/kwinrc`, `plasma-*`, …) | delete manually if you want factory defaults |
 
 ### 🗃️ Reference snapshots
 
-Current machine state (snapshot 2026-08-06): **967 packages** installed,
-**70 manually installed**, **30 enabled services** — measured *after* the
-2026-08-06 base audit. Regenerate these lists
-anytime with:
+Current machine state (snapshot 2026-08-06, post-migration): **1,445 packages**
+installed, **92 manually installed**, **28 enabled services**. Regenerate
+these lists anytime with:
 
 ```bash
 apt-mark showmanual | sort > /tmp/manual-packages-current.txt
@@ -1855,9 +1183,9 @@ systemctl list-unit-files --type=service --state=enabled --no-pager | \
 
 | # | Check | Expect |
 |---|---|---|
-| 1 | `systemctl status greetd` | login manager **up** |
-| 2 | `systemctl --user status niri` | compositor **running** |
-| 3 | `pgrep -a quickshell` | bar **spawned** |
+| 1 | `systemctl status sddm` | login manager **up** |
+| 2 | `pgrep -a kwin_wayland` | compositor **running** |
+| 3 | `pgrep -a plasmashell` | shell **running** |
 | 4 | `nvidia-smi` | dGPU driver **loaded** |
 | 5 | `nmcli device wifi list` | WiFi via NetworkManager |
 
@@ -1865,34 +1193,35 @@ systemctl list-unit-files --type=service --state=enabled --no-pager | \
 
 ## ❓ FAQ
 
-**"Why not just install Ubuntu Desktop?"** Because it ships a GNOME desktop,
-snaps, and hundreds of packages we'd never use. This setup starts from the
-*minimized server* base and adds only what we need — **~967 packages** vs. a
-stock desktop's several thousand, and **~2 processes at idle** instead of a
-dozen.
+**"Why Plasma now, instead of the niri + quickshell stack?"** The hand-rolled
+stack was ~2 processes at idle, but every extra feature (lock screen, power
+management, network/audio applets, settings) was hand-built or missing. Plasma
+6 gives the *complete* desktop — widgets, settings, lock, power, tray,
+screenshots — as one supported, pure-Wayland unit. The lean rules still apply:
+no KDE apps, no indexers, no snaps. Cost: ~7-8 idle processes and ~480 more
+packages (Qt6 + KF6). Details in [step 9](#9️⃣-the-niri--plasma-migration-done-2026-08-06).
+
+**"Why not just install Ubuntu Desktop?"** It ships GNOME, snaps, and hundreds
+of packages we'd never use. This setup starts from the *minimized server* base
+and adds only what we need — **1,445 packages** vs. a stock desktop's several
+thousand.
 
 **"Why interim instead of LTS?"** LTS releases stay on old software for 5+
 years. The interim cadence (every 6 months) brings current kernels, drivers,
-and Wayland compositors — especially relevant for niri and the NVIDIA driver,
-which improve fast. `Prompt=normal` in `/etc/update-manager/release-upgrades`
-is the single switch that makes this work.
+and Plasma — especially relevant for the NVIDIA driver, which improves fast.
+`Prompt=normal` in `/etc/update-manager/release-upgrades` is the single switch.
 
-**"Why hand-write a quickshell bar instead of using waybar?"** Waybar on
-Wayland needs a separate IPC daemon, a window layer, and config duplication.
-Quickshell gives us one process rendering both bars, a launcher, and the tray —
-all in one readable QML file (~990 lines) with niri's IPC built in.
+**"Is this stable enough for daily use?"** Yes — Plasma 6 Wayland on NVIDIA is
+a mature, supported combination. The main caveats are the known NVIDIA quirks
+(documented in [🎮 NVIDIA](#-nvidia)) and the open refinements in
+[🚧 Work In Progress](#-work-in-progress).
 
-**"Is this stable enough for daily use?"** Yes — niri is the most
-feature-complete scrollable-tiling compositor and reloads configs live. The
-main caveats are the known NVIDIA quirks (documented in [🎮 NVIDIA](#-nvidia))
-and that the bar is a WIP (see [🚧 Work In Progress](#-work-in-progress)).
+**"Where are the panels/widgets?"** Plasma's default two panels. Right-click a
+panel → Edit Mode to move/add widgets; the layout is backed up to this repo.
 
-**"How do I get audio back?"** `sudo apt install -y pipewire pipewire-pulse
-wireplumber` — it was purged with the GNOME cleanup. Volume keys use `wpctl`.
-
-**"How do I update everything?"** `nala update && nala upgrade` (weekly,
-see [🧹 Maintenance](#-maintenance--service-inventory)). For the distro
-itself: `sudo do-release-upgrade` every 6 months.
+**"How do I update everything?"** `nala update && nala upgrade` (weekly, see
+[🧹 Maintenance](#-maintenance--service-inventory)). For the distro itself:
+`sudo do-release-upgrade` every 6 months.
 
 **"How do I reset back to a clean server?"** The [📜 Provisioning & Baseline](#-provisioning--baseline)
 section has the exact reset commands.
@@ -1904,11 +1233,12 @@ section has the exact reset commands.
 | | |
 |---|---|
 | 🖥️ **OS** | Ubuntu interim (non-LTS), 6-month cadence — fresh *minimized server* base |
-| 📆 **Release plan** | `sudo do-release-upgrade` to the next interim release every 6 months (see [🚧 Work In Progress](#-work-in-progress)) |
-| 🪟 **Compositor** | niri — scrollable-tiling, pure Wayland |
-| 🧱 **Shell** | hand-written quickshell (~990 lines): top bar = workspaces · net/mem/cpu · kbd · date/clock · tray; bottom bar = launcher · window taskbar |
+| 📆 **Release plan** | `sudo do-release-upgrade` to the next interim release every 6 months |
+| 🪟 **Desktop** | KDE Plasma 6 — full core, **Wayland only**, no KDE apps |
+| 🧱 **Shell** | plasmashell — panels + widgets + tray (native) |
+| 🚀 **Launcher** | KRunner (Meta) |
 | 💻 **Terminal** | Ghostty (native Wayland) |
-| 🚀 **Launcher** | quickshell popup (Mod+R) + fuzzel fallback (Mod+D) |
 | 🌍 **Browser** | Helium — Chromium fork, real `.deb`, no snap |
-| 🖥️ **Display stack** | pure Wayland, no X11 apps, no desktop environment |
-| 🎯 **Policy** | only necessary packages; no third-party configs or shells |
+| 🔑 **Login** | SDDM (breeze) |
+| 🖥️ **Display stack** | pure Wayland (KWin; xwayland ships but nothing X11 runs) |
+| 🎯 **Policy** | only necessary packages; no indexers, no snaps, no KDE app bundle |
