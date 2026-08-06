@@ -40,7 +40,25 @@ PanelWindow {
     property var prevNet: ({ down: -1, up: -1 })
     property var prevCpu: ({ total: -1, idle: -1 })
 
+    // Only workspaces/windows of this output are shown (the bars
+    // are pinned to one screen; niri reports every output's
+    // workspaces/windows, including "active" per output).
+    readonly property string outputName: bar.screen ? bar.screen.name : "eDP-2"
+    property var wsOutputs: ({})           // workspace id → output name
+
+    // Waybar-parity modules: caffeine (idle inhibitor), lock keys,
+    // layout switch + IP tooltip.
+    property bool caffeineOn: false        // systemd-inhibit running?
+    property string lockState: "0 0"       // numlock capslock (1/0)
+    property string ipText: ""             // hover tooltip for NET
+    property string tipText: ""            // hover tooltip text
+
+    readonly property bool numLock: lockState.split(" ")[0] === "1"
+    readonly property bool capsLock: lockState.split(" ")[1] === "1"
+
     signal launcherRequested()
+
+    property var notifs: null          // Notifs service (bell + DND)
 
     // ── niri IPC: workspaces + windows (1 s loop) ────────────
     Process {
@@ -66,7 +84,8 @@ PanelWindow {
                 try {
                     const ids = new Set();
                     for (const w of JSON.parse(data)) {
-                        if (w.workspace_id) ids.add(w.workspace_id);
+                        if (w.workspace_id && bar.wsOutputs[w.workspace_id] === bar.outputName)
+                            ids.add(w.workspace_id);
                     }
                     windowIds = [...ids];
                 } catch (e) {}
@@ -81,12 +100,73 @@ PanelWindow {
         actionProc.running = true;
     }
 
-    // Dynamic: only workspaces holding windows + the active one.
-    // Labels are plain numbers, with the workspace name appended.
+    function focusWorkspaceRelative(dir) {
+        actionProc.command = ["niri", "msg", "action",
+            dir === "down" ? "focus-workspace-down" : "focus-workspace-up"];
+        actionProc.running = true;
+    }
+
+    // ── Caffeine (waybar idle_inhibitor port) ────────────────
+    // systemd-inhibit runs in the background; its pid lives in
+    // /tmp/qs-caffeine.pid (also used to restore state on start).
+    Process { id: caffeineProc; command: [] }
+    Process { id: caffeineKillProc; command: [] }
+
+    function toggleCaffeine() {
+        if (bar.caffeineOn) {
+            caffeineKillProc.command = ["sh", "-c",
+                "[ -f /tmp/qs-caffeine.pid ] && kill $(cat /tmp/qs-caffeine.pid) && rm -f /tmp/qs-caffeine.pid"];
+            caffeineKillProc.running = true;
+            bar.caffeineOn = false;
+        } else {
+            caffeineProc.command = ["sh", "-c",
+                "systemd-inhibit --what=idle:handle-lid-switch --why=Caffeine --mode=block sleep infinity & echo $! > /tmp/qs-caffeine.pid"];
+            caffeineProc.running = true;
+            bar.caffeineOn = true;
+        }
+    }
+
+    Process {
+        id: caffeineStateProc
+        command: ["sh", "-c", "[ -f /tmp/qs-caffeine.pid ] && echo on"]
+        stdout: SplitParser { onRead: d => { if (String(d).trim() === "on") bar.caffeineOn = true; } }
+    }
+
+    // ── Lock keys (waybar keyboard-state port) ───────────────
+    // Reads the LED brightness of the built-in AT keyboard.
+    Process {
+        id: lockProc
+        command: ["sh", "-c",
+            "for l in numlock capslock; do v=0; for d in /sys/class/leds/input*::$l; do " +
+            "[ \"$(cat \"$d/device/name\" 2>/dev/null)\" = \"AT Translated Set 2 keyboard\" ] && " +
+            "v=$(cat \"$d/brightness\" 2>/dev/null); done; printf \"%s \" \"$v\"; done"]
+        stdout: SplitParser { onRead: d => { const t = String(d).trim(); if (t !== "") bar.lockState = t; } }
+    }
+
+    // ── Layout switch (waybar hyprland/language on-click) ────
+    Process { id: layoutProc; command: ["niri", "msg", "action", "switch-layout", "next"] }
+
+    function switchLayout() { layoutProc.running = true; }
+
+    // ── NET tooltip: current IP (waybar network tooltip) ─────
+    Process {
+        id: ipProc
+        command: ["sh", "-c",
+            "ip -4 -o addr show scope global | awk '$2!=\"lo\"{print $2, $4; exit}'"]
+        stdout: SplitParser { onRead: d => { const t = String(d).trim(); if (t !== "") { bar.ipText = t; if (bar.tipText.startsWith("IP")) bar.tipText = "IP: " + t; } } }
+    }
+
+    // Dynamic: only this output's workspaces holding windows plus
+    // the active one. Labels are plain numbers, with the workspace
+    // name appended.
     function parseWorkspaces(json) {
         const list = JSON.parse(json);
+        const outMap = {};
+        for (const ws of list) outMap[ws.id] = ws.output;
+        bar.wsOutputs = outMap;
         const arr = [];
         for (const ws of list) {
+            if (ws.output !== bar.outputName) continue;
             const hasWindows = windowIds.includes(ws.id) || ws["is_active"] === true;
             if (!hasWindows) continue;
             const name = ws.name ? " " + ws.name : "";
@@ -162,13 +242,18 @@ PanelWindow {
     }
 
     // ── Timers ───────────────────────────────────────────────
-    Component.onCompleted: { workspacesProc.running = true; windowsProc.running = true; }
+    Component.onCompleted: {
+        workspacesProc.running = true;
+        windowsProc.running = true;
+        lockProc.running = true;
+        caffeineStateProc.running = true;
+    }
 
     Timer { interval: 1000; running: true; repeat: true; onTriggered: workspacesProc.running = true; }
     Timer { interval: 1000; running: true; repeat: true; onTriggered: windowsProc.running = true; }
     Timer { interval: 1000; running: true; repeat: true; onTriggered: netProc.running = true; }
     Timer { interval: 1000; running: true; repeat: true; onTriggered: cpuProc.running = true; }
-    Timer { interval: 1000; running: true; repeat: true; onTriggered: cpuProc.running = true; }
+    Timer { interval: 2000; running: true; repeat: true; onTriggered: lockProc.running = true; }
     Timer { interval: 5000; running: true; repeat: true; onTriggered: memProc.running = true; }
     Timer { interval: 5000; running: true; repeat: true; onTriggered: kbdProc.running = true; }
     Timer {
@@ -213,8 +298,12 @@ PanelWindow {
         anchors.rightMargin: 16
         spacing: 0
 
-        // Workspaces — dynamic pill group
+        // Workspaces — dynamic pill group with a sliding active
+        // indicator (ported from caelestia-dots/shell) and an
+        // animated background pill spanning occupied runs.
         Rectangle {
+            id: wsBox
+
             Layout.alignment: Qt.AlignVCenter
             Layout.preferredHeight: 15
             Layout.preferredWidth: pillRow.implicitWidth + 12
@@ -223,12 +312,110 @@ PanelWindow {
             radius: 8
             color: gruv.colTile
 
+            // Wheel over the workspace group switches workspaces
+            // (waybar on-scroll parity). No buttons: pill clicks pass.
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.NoButton
+                onWheel: wheel => {
+                    if (wheel.angleDelta.y > 0) bar.focusWorkspaceRelative("down");
+                    else bar.focusWorkspaceRelative("up");
+                }
+            }
+
+            // Contiguous runs of occupied workspaces → background pills
+            property var runs: []
+
+            function computeRuns() {
+                const occ = new Set(bar.windowIds);
+                const ws = bar.workspaces;
+                const arr = [];
+                let i = 0;
+                while (i < ws.length) {
+                    if (!occ.has(ws[i].id)) { i++; continue; }
+                    const run = { start: i, end: i };
+                    let j = i + 1;
+                    while (j < ws.length && occ.has(ws[j].id)) { run.end = j; j++; }
+                    arr.push(run);
+                    i = j;
+                }
+                runs = arr;
+            }
+
+            Connections {
+                target: bar
+                function onWorkspacesChanged() { wsBox.computeRuns(); }
+                function onWindowIdsChanged() { wsBox.computeRuns(); }
+            }
+
+            Component.onCompleted: computeRuns()
+
+            // Occupied background — darker pill behind occupied runs
+            Repeater {
+                model: wsBox.runs
+
+                Rectangle {
+                    required property var modelData
+
+                    readonly property var firstPill: pillsRep.itemAt(modelData.start)
+                    readonly property var lastPill: pillsRep.itemAt(modelData.end)
+
+                    z: 0
+                    y: pillRow.y + (firstPill ? firstPill.y : 0)
+                    height: 14
+                    radius: 7
+                    color: gruv.colBar
+
+                    x: pillRow.x + (firstPill ? firstPill.x : 0)
+                    width: firstPill && lastPill
+                         ? lastPill.x + lastPill.width - firstPill.x : 0
+
+                    Behavior on x {
+                        NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
+                    }
+                    Behavior on width {
+                        NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
+                    }
+                }
+            }
+
+            // Active indicator — glides over the active pill
+            Rectangle {
+                id: activeInd
+
+                readonly property var pill: {
+                    for (let i = 0; i < pillsRep.count; i++) {
+                        const p = pillsRep.itemAt(i);
+                        if (p && p.modelData.active) return p;
+                    }
+                    return null;
+                }
+
+                z: 1
+                visible: pillsRep.count > 0
+                x: pillRow.x + (pill ? pill.x : 0)
+                y: pillRow.y + (pill ? pill.y : 0)
+                width: pill ? pill.width : 22
+                height: 14
+                radius: 7
+                color: gruv.colGreen
+
+                Behavior on x {
+                    SpringAnimation { spring: 3; damping: 0.5 }
+                }
+                Behavior on width {
+                    SpringAnimation { spring: 3; damping: 0.5 }
+                }
+            }
+
             RowLayout {
                 id: pillRow
                 anchors.centerIn: parent
                 spacing: 2
+                z: 2
 
                 Repeater {
+                    id: pillsRep
                     model: bar.workspaces
 
                     Rectangle {
@@ -238,17 +425,17 @@ PanelWindow {
                         Layout.preferredWidth: Math.max(22, labelText.implicitWidth + 10)
                         Layout.preferredHeight: 14
                         radius: 7
-
-                        color: hovered ? gruv.colGreen
-                             : modelData.urgent ? gruv.colRed
-                             : modelData.active ? gruv.colBar
-                             : gruv.colAqua
+                        color: "transparent"
 
                         Text {
                             id: labelText
                             anchors.centerIn: parent
                             text: modelData.label
-                            color: gruv.colFg
+                            color: hovered ? gruv.colGreen
+                                 : modelData.urgent ? gruv.colRed
+                                 : modelData.active ? gruv.colFgDark
+                                 : bar.windowIds.includes(modelData.id) ? gruv.colFg
+                                 : gruv.colMuted
                             font.pixelSize: 10
                             font.bold: true
                         }
@@ -291,6 +478,17 @@ PanelWindow {
                     font.bold: true
                     text: bar.netText
                     textFormat: Text.RichText
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onEntered: {
+                            const p = parent.mapToItem(bar, 0, 0);
+                            bar.tipText = bar.ipText ? "IP: " + bar.ipText : "…";
+                            tip.showAt(bar, Qt.rect(p.x, bar.implicitHeight + 6, 1, 1));
+                            ipProc.running = true;
+                        }
+                        onExited: bar.tipText = ""
+                    }
                 }
 
                 // MEM
@@ -321,18 +519,54 @@ PanelWindow {
                     text: bar.cpuPct + "%"
                 }
 
-                // KEYBOARD layout
+                // KEYBOARD lock state (num/caps) — waybar keyboard-state port
+                Text {
+                    color: bar.numLock ? gruv.colRed : gruv.colGreen
+                    font.family: gruv.iconFont
+                    font.pixelSize: 10
+                    text: "\uF3BE"          // mdi-numeric-9-box-outline (numlock)
+                }
+                Text {
+                    color: bar.capsLock ? gruv.colRed : gruv.colGreen
+                    font.family: gruv.iconFont
+                    font.pixelSize: 10
+                    text: "\uF30E"          // mdi-keyboard-caps (capslock)
+                }
+
+                // KEYBOARD layout — click switches (waybar language on-click)
                 Text {
                     color: gruv.colPurple
                     font.family: gruv.iconFont
                     font.pixelSize: 10
                     text: "\uF30C"          // mdi-keyboard
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onEntered: {
+                            const p = parent.mapToItem(bar, 0, 0);
+                            bar.tipText = "Click to switch keyboard layout";
+                            tip.showAt(bar, Qt.rect(p.x, bar.implicitHeight + 6, 1, 1));
+                        }
+                        onExited: bar.tipText = ""
+                        onClicked: bar.switchLayout()
+                    }
                 }
                 Text {
                     color: gruv.colPurple
                     font.pixelSize: 9
                     font.bold: true
                     text: bar.kbdShort
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onEntered: {
+                            const p = parent.mapToItem(bar, 0, 0);
+                            bar.tipText = "Click to switch keyboard layout";
+                            tip.showAt(bar, Qt.rect(p.x, bar.implicitHeight + 6, 1, 1));
+                        }
+                        onExited: bar.tipText = ""
+                        onClicked: bar.switchLayout()
+                    }
                 }
 
                 // DATE
@@ -422,5 +656,87 @@ PanelWindow {
                 }
             }
         }
+
+        // Bell (notifications) — swaync port: left = open the
+        // control center, right = toggle Do Not Disturb.
+        Rectangle {
+            id: bellBox
+
+            Layout.alignment: Qt.AlignVCenter
+            Layout.preferredHeight: 15
+            Layout.preferredWidth: 26
+            Layout.topMargin: 5
+            Layout.bottomMargin: 6
+            Layout.leftMargin: 8
+            radius: 8
+            color: gruv.colTile
+            visible: bar.notifs !== null
+
+            Text {
+                anchors.centerIn: parent
+                text: bar.notifs && bar.notifs.dnd ? "\uF09B" : "\uF09A"
+                color: bar.notifs && bar.notifs.dnd ? gruv.colMuted : gruv.colGreen
+                font.family: gruv.iconFont
+                font.pixelSize: 11
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onClicked: mouse => {
+                    if (!bar.notifs) return;
+                    if (mouse.button === Qt.RightButton) bar.notifs.toggleDnd();
+                    else bar.notifs.toggleCenter();
+                }
+                onEntered: {
+                    const p = parent.mapToItem(bar, 0, 0);
+                    bar.tipText = "Notifications — left: center, right: DND";
+                    tip.showAt(bar, Qt.rect(p.x, bar.implicitHeight + 6, 1, 1));
+                }
+                onExited: bar.tipText = ""
+            }
+        }
+
+        // Caffeine (idle inhibitor) — waybar idle_inhibitor port:
+        // click toggles a systemd-inhibit lock; green = active.
+        Rectangle {
+            id: caffeineBox
+
+            Layout.alignment: Qt.AlignVCenter
+            Layout.preferredHeight: 15
+            Layout.preferredWidth: 26
+            Layout.topMargin: 5
+            Layout.bottomMargin: 6
+            Layout.leftMargin: 8
+            radius: 8
+            color: gruv.colTile
+
+            Text {
+                anchors.centerIn: parent
+                text: bar.caffeineOn ? "\uF176" : "\uF1AA"   // mdi-coffee / mdi-cup
+                color: bar.caffeineOn ? gruv.colGreen : gruv.colMuted
+                font.family: gruv.iconFont
+                font.pixelSize: 11
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: bar.toggleCaffeine()
+                onEntered: {
+                    const p = parent.mapToItem(bar, 0, 0);
+                    bar.tipText = bar.caffeineOn ? "Caffeine ON — click to disable" : "Caffeine OFF — click to enable";
+                    tip.showAt(bar, Qt.rect(p.x, bar.implicitHeight + 6, 1, 1));
+                }
+                onExited: bar.tipText = ""
+            }
+        }
+    }
+
+    // Floating hover tooltip (popup window; see ToolTip.qml)
+    ToolTip {
+        id: tip
+        text: bar.tipText
     }
 }

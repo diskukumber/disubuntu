@@ -17,7 +17,7 @@ import QtQuick.Layouts
 //  Enter launches, Esc closes, arrows navigate.
 // ─────────────────────────────────────────────────────────────
 
-PopupWindow {
+PanelWindow {
     id: launcher
 
     Gruvbox { id: gruv }
@@ -26,10 +26,18 @@ PopupWindow {
     // The bar window this popup anchors to (set from shell.qml)
     required property var barWindow
 
-    // Positioned via anchor.rect (see positionPopup()) relative to the bar.
+    // PopupWindow is unusable in this quickshell build (0.3.0ppa8):
+    // it never maps. PanelWindow (layer-shell) maps reliably. Centered
+    // under the bar via the computed left margin. `focusable` lets the
+    // search field take keyboard input while the launcher is open.
+    anchors.top: true
+    anchors.left: true
+    margins.top: -18
+    margins.left: (screen.width - launcher.implicitWidth) / 2
+    exclusiveZone: 0
+    focusable: true
     implicitWidth: 480
     implicitHeight: Math.min(44 + 44 * visibleApps.length, 44 + 44 * 8)
-    grabFocus: false
     visible: false
 
     // ── Theme (Gruvbox, same as the bars) ────────────────────
@@ -63,7 +71,6 @@ PopupWindow {
         query = "";
         selected = 0;
         rebuildFilter();
-        positionPopup();
         visible = true;
         searchField.forceActiveFocus();
     }
@@ -71,13 +78,6 @@ PopupWindow {
     function closeLauncher() {
         visible = false;
         searchField.text = "";
-    }
-
-    function positionPopup() {
-        launcher.anchor.window = barWindow;
-        // center the popup under the bar
-        launcher.anchor.rect.x = barWindow.width / 2 - width / 2;
-        launcher.anchor.rect.y = barWindow.height + 8;
     }
 
     // ── Filtering ────────────────────────────────────────────
@@ -114,9 +114,6 @@ PopupWindow {
         // prepare trigger file, then start watching
         touchProc.running = true;
         tailProc.running = true;
-
-        // anchor to the bar before first show
-        positionPopup();
     }
 
     // ── UI ───────────────────────────────────────────────────

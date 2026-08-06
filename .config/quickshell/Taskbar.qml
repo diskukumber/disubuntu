@@ -30,6 +30,12 @@ PanelWindow {
     property var windows: []               // [{id, appId, title}]
     property int focusedId: -1
 
+    // Only windows of this output are shown (the taskbar is pinned
+    // to one screen; niri reports windows from every output).
+    readonly property string outputName: taskbar.screen ? taskbar.screen.name : "eDP-2"
+    property var wsOutputs: ({})           // workspace id → output name
+    property string tipText: ""            // hover tooltip (window title)
+
     signal launcherRequested()
 
     // ── niri IPC: window list (1 s loop) ─────────────────────
@@ -40,6 +46,23 @@ PanelWindow {
             onRead: data => {
                 if (!data) return;
                 try { parseWindows(data); } catch (e) {}
+            }
+        }
+        onRunningChanged: if (!running) running = true
+    }
+
+    // niri IPC: workspace → output map (needed to filter windows)
+    Process {
+        id: wsProc
+        command: ["niri", "msg", "-j", "workspaces"]
+        stdout: SplitParser {
+            onRead: data => {
+                if (!data) return;
+                try {
+                    const map = {};
+                    for (const ws of JSON.parse(data)) map[ws.id] = ws.output;
+                    taskbar.wsOutputs = map;
+                } catch (e) {}
             }
         }
         onRunningChanged: if (!running) running = true
@@ -56,6 +79,7 @@ PanelWindow {
         const list = JSON.parse(json);
         const arr = [];
         for (const w of list) {
+            if (w.workspace_id && taskbar.wsOutputs[w.workspace_id] !== taskbar.outputName) continue;
             arr.push({ id: w.id, appId: w.app_id || "", title: w.title || "" });
             if (w["is_focused"]) focusedId = w.id;
         }
@@ -63,8 +87,8 @@ PanelWindow {
     }
 
     // ── Timers ───────────────────────────────────────────────
-    Component.onCompleted: winProc.running = true;
-    Timer { interval: 1000; running: true; repeat: true; onTriggered: winProc.running = true; }
+    Component.onCompleted: { winProc.running = true; wsProc.running = true; }
+    Timer { interval: 1000; running: true; repeat: true; onTriggered: { winProc.running = true; wsProc.running = true; } }
 
     // ── Bar shape ────────────────────────────────────────────
     Canvas {
@@ -169,8 +193,16 @@ PanelWindow {
                     MouseArea {
                         anchors.fill: parent
                         hoverEnabled: true
-                        onEntered: parent.hovered = true
-                        onExited: parent.hovered = false
+                        onEntered: {
+                            parent.hovered = true;
+                            const p = parent.mapToItem(taskbar, 0, 0);
+                            taskbar.tipText = modelData.title || modelData.appId;
+                            tip.showAt(taskbar, Qt.rect(p.x + parent.width / 2, p.y - 8, 1, 1));
+                        }
+                        onExited: {
+                            parent.hovered = false;
+                            taskbar.tipText = "";
+                        }
                         onClicked: mouse => {
                             if (mouse.button === Qt.MiddleButton || mouse.button === Qt.RightButton)
                                 taskbar.action(["close-window", "--id", String(modelData.id)]);
@@ -183,5 +215,11 @@ PanelWindow {
 
             Item { Layout.fillWidth: true }   // left spacer
         }
+    }
+
+    // Floating hover tooltip with the window title (ToolTip.qml)
+    ToolTip {
+        id: tip
+        text: taskbar.tipText
     }
 }

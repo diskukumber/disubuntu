@@ -283,6 +283,7 @@ binds {
     Mod+T hotkey-overlay-title="Open a Terminal: ghostty" { spawn "ghostty"; }
     Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
     Mod+R hotkey-overlay-title="App Launcher (quickshell)" { spawn-sh "echo toggle >> /tmp/qs-launcher-toggle"; }
+    Mod+N hotkey-overlay-title="Control Center (quickshell)" { spawn-sh "echo toggle >> /tmp/qs-center-toggle"; }
     Mod+S hotkey-overlay-title="Screenshot (select area)" { screenshot; }   // hypr: grim+slurp
 
     // ── Session ──
