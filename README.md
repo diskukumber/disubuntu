@@ -7,8 +7,10 @@ release cadence**.
 
 | Summary | |
 |---|---|
-| 🖥️ **OS** | Ubuntu interim (non-LTS, 6-month cadence) — Server *minimized* base |
+| 🖥️ **OS** | Ubuntu **26.04 LTS (Resolute)** today → **26.10 (Stonking Stingray)** interim via `do-release-upgrade` in Oct 2026 — Server *minimized* base |
 | 🪟 **Desktop** | [KDE Plasma 6](https://kde.org/plasma-desktop/) — **Wayland only** (`kwin_wayland`), full core: widgets, panels, settings — exactly two KDE apps: dolphin + konsole |
+| 🗂️ **Tiling** | **Kröhnkite** (dynamic tiling KWin script, only third-party component) + native KWin tiling fallback |
+| 🔥 **Firewall** | firewalld + plasma-firewall KCM (`public` zone, `ssh`+`dhcpv6-client`) · firmware via fwupd |
 | 🔑 **Login** | [SDDM](https://github.com/sddm/sddm) (breeze theme) — native Plasma display manager |
 | 🎨 **GPU** | Intel UHD (iGPU, panel) + NVIDIA RTX 2060 (dGPU, renders) |
 
@@ -27,14 +29,15 @@ release cadence**.
 | [🖥️ Hardware](#-hardware) | the machine: CPU, RAM, storage, dual-GPU hybrid graphics |
 | [🧩 Software stack & package inventory](#-software-stack--package-inventory) | the diagram, who does what, every package, process count |
 | [🚀 Session Startup](#-session-startup) | SDDM → Plasma (Wayland) boot chain |
-| [🎛️ KWin & Plasma Configuration](#-kwin--plasma-configuration) | kwinrc, panels, shortcuts — section by section |
-| [⌨️ Key Bindings](#-key-bindings) | the KDE default + custom cheat sheet |
+| [🎛️ KWin & Plasma Configuration](#-kwin--plasma-configuration) | kwinrc, panels, shortcuts — section by section (incl. Kröhnkite tiling) |
+| [⌨️ Key Bindings](#-key-bindings) | the KDE default + custom cheat sheet (incl. Kröhnkite) |
 | [🎮 NVIDIA](#-nvidia) | driver, modeset, VRAM fix, groups, diagnostics |
 | [🚧 Work In Progress](#-work-in-progress) | what's done, what's open, the 6-month release plan |
 | [📦 Packages & Details](#-packages--details) | the one-glance component table |
 | [🛠️ Troubleshooting & Known Issues](#-troubleshooting--known-issues) | symptom→fix table, logs, recovery recipes |
 | [🧹 Maintenance & Service Inventory](#-maintenance--service-inventory) | cleanup, services, dotfiles, routine care |
 | [📜 Provisioning & Baseline](#-provisioning--baseline) | fresh-install baseline, install/reset commands |
+| [🤖 setup.sh](#-setup-sh) | the gum-powered installer TUI (WIP) — `bash setup.sh --check` |
 | [❓ FAQ](#-faq) | quick answers: why Plasma, why interim, how to update/reset |
 | [ℹ️ Quick facts](#-quick-facts) | TL;DR summary |
 
@@ -277,15 +280,24 @@ sudo apt install -y helium-bin
 
 # Pretty apt frontend
 sudo apt install -y nala
+
+# Security: firewall (firewalld + Plasma KCM) + firmware updates (fwupd)
+sudo apt install -y firewalld plasma-firewall fwupd
+
+# Dynamic tiling (KWin script installer) + the TUI builder tool
+sudo apt install -y kpackagetool6 gum
 ```
 
 **What the `--no-install-recommends` intentionally leaves out** (bloat or
 backends we don't have): `plasma-discover` (app store), `plasma-browser-integration`,
-`plasma-firewall` (needs firewalld), `plasma-vault` (needs cryfs), `plasma-thunderbolt`,
+`plasma-vault` (needs cryfs), `plasma-thunderbolt`,
 `bluedevil` (no bluez), `plasma-disks` (needs udisks2), `khelpcenter`, `kgamma`,
 plus the rest of the KDE app suite (`kde-baseapps`: kate, gwenview, ark, elisa…).
 **Exceptions added 2026-08-06:** `dolphin` (file manager) + `konsole`
 (second terminal) — see step 5f.
+**Exceptions added 2026-08-07 (desktop pass):** `firewalld` + `plasma-firewall`
+(host firewall — see the Kröhnkite section below), `fwupd` (firmware updates),
+`kpackagetool6` (KWin script installer) + `gum` (setup.sh TUI).
 No kwin-x11 — **Wayland only**, no X session.
 
 > [!NOTE]
@@ -377,6 +389,8 @@ sudo update-grub
 - [ ] `sudo usermod -aG video,render $USER`
 - [ ] `sudo systemctl disable udisks2` (dormant-at-idle, step 5e)
 - [ ] `dolphin` + `konsole` + `balooctl6 disable` (step 5f)
+- [ ] Install the Kröhnkite artifact from `vendor/krohnkite/` (`kpackagetool6 -t KWin/Script -i`) + enable
+- [ ] Enable + start `firewalld`, allow `ssh`; `systemctl enable --now fwupd` + `fwupdmgr refresh`
 - [ ] Copy configs from this repo (step 7)
 - [ ] Reboot → SDDM → log in → Plasma (Wayland)
 - [ ] `pgrep -a kwin_wayland` + `pgrep -a plasmashell` → desktop up
@@ -510,11 +524,11 @@ Applications (Konsole, plasmashell, etc.)
 What runs, what each piece does, and every installed package by category.
 
 > [!NOTE]
-> 📊 **Snapshot 2026-08-06:** **1,440 packages** installed,
-> **86 manually installed**, **28 enabled services** — measured *after* the
-> niri→Plasma migration, the base audit, the 2026-08-06 cleanup (build
-> toolchain + alacritty purged), the dolphin/konsole add, and the ghostty
-> removal + apt autoremove (see [🧹 Maintenance](#-maintenance--service-inventory)).
+> 📊 **Snapshot 2026-08-07:** **1,475 packages** installed,
+> **91 manually installed**, **29 enabled services** (+1: firewalld; fwupd is
+> socket-activated with an enabled `fwupd-refresh.timer`), plus the Kröhnkite
+> KWin script — measured *after* the 2026-08-07 desktop pass (firewall,
+> firmware updates, dynamic tiling).
 
 ### 🗺️ The whole setup, one diagram
 
@@ -550,7 +564,7 @@ What runs, what each piece does, and every installed package by category.
 | Job | Handled by | Why this choice |
 |---|---|---|
 | **Desktop shell** | **plasmashell** | panels, widgets, notifications, tray — Plasma's native shell |
-| **Window management** | **KWin (Wayland)** | Plasma's compositor: tiling, effects, screen locker |
+| **Window management** | **KWin (Wayland)** + **Kröhnkite** | Plasma's compositor; dynamic tiling via the Kröhnkite KWin script (only third-party desktop component — see 🪟 Kröhnkite) |
 | **App launcher** | **KRunner** (`Meta`) | Plasma's built-in launcher + app search |
 | **Screenshots** | **KDE Spectacle** | Plasma's native tool; `Print` family |
 | **Status bar / tray** | plasmashell panels | native network (plasma-nm), audio (plasma-pa), power (powerdevil) applets |
@@ -561,6 +575,8 @@ What runs, what each piece does, and every installed package by category.
 | **Backlight keys** | **powerdevil** | Plasma's power management handles brightness natively |
 | **Audio** | **pipewire + wireplumber + plasma-pa** | restored 2026-08-06 with the migration; volume keys in KWin |
 | **Login** | **SDDM** | Plasma's native display manager; breeze theme |
+| **Firewall** | **firewalld** + **plasma-firewall** KCM | host firewall, `public` zone on WiFi, `ssh`+`dhcpv6-client` allowed; configured in System Settings → Firewall (added 2026-08-07) |
+| **Firmware updates** | **fwupd** (`fwupdmgr`) | LVFS firmware metadata + updates (added 2026-08-07) |
 | **Desktop GPU** | **nvidia-driver-595** | see [🎮 NVIDIA](#-nvidia) |
 
 ### 🚫 What is intentionally NOT here
@@ -725,7 +741,30 @@ Everything is movable: right-click a panel → Edit Mode. The layout lands in
 | Effects: wobbly windows, blur, overview | tuned in System Settings → Desktop Effects |
 | Window rules | per-app behavior (e.g. helium always floating) |
 | Screen edges | corners → overview / desktop grid |
-| Tiling | drag to edges for split; tiling layout system in 6.x |
+| Tiling | drag to edges for split; native tiling layout system kept as fallback |
+
+### 🪟 Kröhnkite — dynamic tiling (2026-08-07)
+
+**The only third-party component in this setup.** Dynamic window tiling for
+KWin — windows auto-arrange instead of overlapping; every new window splits
+the focused one (binary tree by default).
+
+| | |
+|---|---|
+| **Version** | `0.9.9.2` — pinned, artifact vendored in `vendor/krohnkite/krohnkite-0.9.9.2.kwinscript` (SHA256 `42f7f66531d366c74b5fc860381da3517ccb4cdccd1f80c122fcab6e9a8fcf7e`). 0.9.9.3-beta exists but is unstable; the TS6 source build is broken — use the release artifact |
+| **Install** | `kpackagetool6 -t KWin/Script -i vendor/krohnkite/krohnkite-0.9.9.2.kwinscript`; enable via System Settings → Window Management → KWin Scripts (`krohnkiteEnabled=true` in `kwinrc`) |
+| **Config** | `[Script-krohnkite]` in `~/.config/kwinrc` (tracked in this repo) |
+
+Per-screen layout (stored in `screenDefaultLayout`): **binary tree**
+(`btreelayout`) on both `eDP-1` (internal) and `HDMI-A-4` — native
+`.25/.5/.25` KWin tiling is kept as a fallback. `directionalKeyFocus=true`,
+and `floatingClass` keeps `plasmashell`/`krunner` floating (never tiled).
+
+Known Plasma-6.6 quirks (see [🛠️ Troubleshooting](#-troubleshooting--known-issues)):
+- **"Minimize all other windows"** is left **unbound** — it conflicts with
+  Kröhnkite's focus handling.
+- The default **Squash** minimize animation misbehaves under Kröhnkite;
+  switch to *None* or *Magic Lamp* if windows animate oddly.
 
 ### 🚀 Startup
 
@@ -744,7 +783,7 @@ Autostart apps: System Settings → Autostart (adds entries to `~/.config/autost
 | Keys | Action |
 |---|---|
 | `Meta` (or `Alt+F2`) | KRunner launcher |
-| `Meta+Return` | Konsole (terminal) |
+| `Ctrl+Alt+T` | Konsole (terminal) |
 | `Print` / `Shift+Print` / `Alt+Print` | Spectacle screenshots (area / screen / window) |
 | `Ctrl+Alt+T` | another terminal window |
 | `Meta+E` | dolphin file manager (added 2026-08-06) |
@@ -763,7 +802,31 @@ Autostart apps: System Settings → Autostart (adds entries to `~/.config/autost
 | `Meta+PgUp/PgDn` | previous / next desktop |
 | `Meta+F11` | fullscreen |
 | `Meta+Shift+F11` | keep above others |
-| `Meta+F` | move window to desktop… |
+| `Alt+F3` | window operations menu (move to desktop, more) |
+
+### 🪟 Kröhnkite (dynamic tiling)
+
+> [!NOTE]
+> KDE's own binds that overlap Kröhnkite's defaults keep their Plasma
+> meaning — KWin registered them first. `Meta+D` (show desktop), `Meta+T`
+> (edit tiles) and `Meta+L` (lock session) stay KDE's; the matching
+> Kröhnkite actions stay unbound. Everything else is Kröhnkite's:
+
+| Keys | Action |
+|---|---|
+| `Meta+H` / `Meta+K` / `Meta+J` | focus left / up / down (vim-style) |
+| `Meta+,` / `Meta+.` | focus previous / next |
+| `Meta+Shift+H` / `J` / `K` / `L` | move window left / down / up / right |
+| `Meta+Ctrl+H` / `J` / `K` / `L` | shrink width / grow height / shrink height / grow width |
+| `Meta+I` | increase ratio |
+| `Meta+\` / `Meta+\|` | next / previous layout |
+| `Meta+R` / `Meta+Shift+R` | rotate / rotate part |
+| `Meta+F` / `Meta+Shift+F` | toggle float (window) / float all |
+| `Meta+M` | monocle layout |
+| `Meta+Shift+Return` | set master (remapped from the default `Meta+Return`) |
+
+All bindings live in `kglobalshortcutsrc` under `[kwin]` (`Krohnkite*`,
+tracked in this repo) and are configurable in System Settings → Shortcuts.
 
 ### 🔊 Audio & brightness
 
@@ -917,15 +980,19 @@ This works **without any X11 config** — KWin handles multi-GPU natively.
 - [x] `udisks2` dormant-at-idle (D-Bus on-demand, no boot daemon).
 - [x] No indexer daemons running: `baloo` disabled.
 - [x] Configs backed up in this repo (`home/` mirrors `~`).
+- [x] **2026-08-07 desktop pass:** firewalld + plasma-firewall KCM (host firewall, `ssh`+`dhcpv6-client` on `public` zone), fwupd + `fwupd-refresh.timer`, and **Kröhnkite 0.9.9.2** dynamic tiling (installed, enabled, live-tested; artifact vendored in `vendor/krohnkite/`).
+- [x] **Theme decision:** Breeze Dark is the default (`kdeglobals` tracked).
+- [x] **setup.sh** exists as a gum-powered TUI stub (`bash setup.sh --check` to dry-run) — full flow lands in the dev pass.
 
 ### 🚧 Open
 
 - [ ] **Panel/layout finalization** — arrange panels + widgets to taste (top bar vs bottom taskbar, tray items) — the current layout is already backed up here.
-- [ ] **Theme** — decide Breeze vs a Gruvbox-adjacent color scheme (`kdeglobals` — current state backed up).
-- [ ] **Shortcuts** — confirm/override KDE defaults to taste (`kglobalshortcutsrc`).
 - [ ] Wallpaper — Plasma's own wallpaper engine; pick one (or keep the dark default).
 - [ ] Bluetooth: not installed yet (bluez optional).
 - [ ] Autostart list: confirm what starts with the session.
+- [ ] **Dev tools: none for now** — Docker / Node / Rust / Go land "when needed" in the dev pass (setup.sh will grow the steps).
+- [ ] **Timeshift** snapshots: decided *maybe later* — the repo-backed configs + interim cadence cover the reset story for now.
+- [ ] **Secure Boot + TPM-FDE (LUKS2):** future goal, deferred to the **next clean install** (not applied to this machine).
 
 ### 📆 Release cadence
 
@@ -943,10 +1010,11 @@ This works **without any X11 config** — KWin handles multi-GPU natively.
 
 |  |  |
 | :-- | --- |
-| 🖥️ Distribution | [Ubuntu](https://ubuntu.com/) interim (6-month release cadence) — Server minimal |
+| 🖥️ Distribution | [Ubuntu](https://ubuntu.com/) 26.04 LTS today, 26.10 interim cadence from Oct 2026 — Server minimal |
 | 📦 Package manager | [nala](https://gitlab.com/volian/nala) — pretty apt frontend |
 | 🪟 Desktop | [KDE Plasma 6](https://kde.org/plasma-desktop/) — full core, Wayland only |
 | 🪟 Compositor | [KWin](https://invent.kde.org/plasma/kwin) (`kwin_wayland`, Plasma 6.6.6) |
+| 🗂️ Tiling | [Kröhnkite](https://codeberg.org/anametologin/Krohnkite) 0.9.9.2 (pinned, vendored) + native KWin tiling fallback |
 | 💻 Terminal Emulator | [Konsole](https://konsole.kde.org/) (KDE Plasma default, Wayland-native) |
 | 🚀 Applications launcher | [KRunner](https://kde.org/plasma-desktop/) (Meta) — Plasma's built-in |
 | 🧱 Shell / Bar | [plasmashell](https://kde.org/plasma-desktop/) — panels + widgets |
@@ -1002,6 +1070,9 @@ This works **without any X11 config** — KWin handles multi-GPU natively.
 | 🎮 **NVIDIA VRAM heap quirk** (~1 GiB hoarded by compositors) | fixed by the application-profile JSON in [🎮 NVIDIA](#-nvidia); the profile must match `kwin_wayland` |
 | 🐧 Some **X11 apps** may misbehave | they run under the rootless Xwayland (KWin default) automatically; native-Wayland apps (helium, konsole) are unaffected |
 | 🔎 `baloo` indexer (dolphin's hard dep) | **disabled** — `balooctl6 disable`; re-enable anytime with `balooctl6 enable` |
+| 🪟 **"Minimize all other windows"** (Plasma 6.6) conflicts with Kröhnkite | left **unbound** by design; don't bind it (breaks focus/tiling) |
+| 🪟 **Squash minimize animation** glitches under Kröhnkite | use *None* or *Magic Lamp* as the minimize effect if windows animate oddly |
+| 🔥 **Meta+D / Meta+T / Meta+L** don't tile (KDE won the conflict) | intentional — KDE's show-desktop / edit-tiles / lock-session keep those keys; Kröhnkite's versions stay unbound |
 
 ### 🔬 Checking the whole stack at once
 
@@ -1071,9 +1142,12 @@ existence (`Pin-Priority: -10`; `apt-cache policy snapd` → candidate `(none)`)
 > **Net effect of the migration:** niri-era stack gone, Plasma core in.
 > Packages 967 → **1,445** → **1,430** (2026-08-06 cleanup: build toolchain +
 > alacritty) → **1,444** (+dolphin/konsole) → **1,440** (ghostty removed + apt
-> autoremove), manual 70 → **92** → **85** → **87** → **86**, enabled services
+> autoremove) → **1,475** (2026-08-07 desktop pass: firewalld/plasma-firewall,
+> fwupd, kpackagetool6, gum + their deps), manual 70 → **92** → **85** → **87**
+> → **86** → **91**, enabled services
 > 27 → **28** (only `sddm` added; `udisks2` disabled
-> again), 0 `rc` entries, no snaps, no Canonical junk — the base rules
+> again) → **29** (+firewalld; fwupd socket-activated + timer),
+> 0 `rc` entries, no snaps, no Canonical junk — the base rules
 > survived intact.
 
 ### ⚙️ Service inventory (enabled, system — 28 currently)
@@ -1146,7 +1220,7 @@ pgrep -a kwin_wayland         # compositor health
 ```
 
 > [!NOTE]
-> **What each command watches over:** `nala` keeps the ~1,440 packages patched,
+> **What each command watches over:** `nala` keeps the ~1,475 packages patched,
 > `journalctl` bounds disk, `nvidia-smi` catches the VRAM quirk, and the
 > kwin_wayland process confirms the desktop survived the upgrade. None of
 > these take more than a minute.
@@ -1245,9 +1319,10 @@ sudo apt-get update && sudo apt-get autoremove --purge -y
 
 ### 🗃️ Reference snapshots
 
-Current machine state (snapshot 2026-08-06, after migration + cleanup +
-dolphin/konsole + ghostty removal): **1,440 packages** installed, **86 manually
-installed**, **28 enabled services**. Regenerate these lists anytime with:
+Current machine state (snapshot 2026-08-07, after the desktop pass: firewall
++ firmware + dynamic tiling): **1,475 packages** installed, **91 manually
+installed**, **29 enabled services** (fwupd is socket-activated +
+`fwupd-refresh.timer`). Regenerate these lists anytime with:
 
 ```bash
 apt-mark showmanual | sort > /tmp/manual-packages-current.txt
@@ -1268,6 +1343,21 @@ systemctl list-unit-files --type=service --state=enabled --no-pager | \
 
 ---
 
+## 🤖 setup.sh
+
+The reproducible installer for this machine, as a **gum-powered TUI**
+(interactive prompts; `--yes` skips them, `--check` dry-runs).
+
+| | |
+|---|---|
+| **Status** | **WIP stub** — covers the 2026-08-07 desktop pass; the dev-tools pass (Docker/Node/Rust/Go) and the full reinstall flow are next |
+| **Run it** | `bash setup.sh` (or `bash setup.sh --check` to preview) |
+| **Steps** | 1) apt: kpackagetool6, firewalld, plasma-firewall, fwupd, gum · 2) enable firewalld + allow `ssh` · 3) `fwupdmgr refresh` · 4) copy tracked configs from `home/` into `~/.config` · 5) install + enable Kröhnkite from `vendor/krohnkite/` and reconfigure KWin |
+| **Idempotent** | safe to re-run — packages/script/config already present are skipped |
+| **Order matters** | configs land **before** the Kröhnkite enable+reconfigure, so the tracked `kwinrc`/`kglobalshortcutsrc` (with `[Script-krohnkite]` and the `Krohnkite*` binds) apply cleanly |
+
+---
+
 ## ❓ FAQ
 
 **"Why Plasma now, instead of the niri + quickshell stack?"** The hand-rolled
@@ -1283,13 +1373,15 @@ Details in [step 9](#9️⃣-the-niri--plasma-migration-done-2026-08-06).
 
 **"Why not just install Ubuntu Desktop?"** It ships GNOME, snaps, and hundreds
 of packages we'd never use. This setup starts from the *minimized server* base
-and adds only what we need — **1,440 packages** vs. a stock desktop's several
+and adds only what we need — **1,475 packages** vs. a stock desktop's several
 thousand.
 
 **"Why interim instead of LTS?"** LTS releases stay on old software for 5+
 years. The interim cadence (every 6 months) brings current kernels, drivers,
 and Plasma — especially relevant for the NVIDIA driver, which improves fast.
 `Prompt=normal` in `/etc/update-manager/release-upgrades` is the single switch.
+**This machine is on Ubuntu 26.04 LTS today; next stop is the 26.10 interim
+release in October 2026** (`sudo do-release-upgrade` when it lands).
 
 **"Is this stable enough for daily use?"** Yes — Plasma 6 Wayland on NVIDIA is
 a mature, supported combination. The main caveats are the known NVIDIA quirks
@@ -1312,13 +1404,15 @@ section has the exact reset commands.
 
 | | |
 |---|---|
-| 🖥️ **OS** | Ubuntu interim (non-LTS), 6-month cadence — fresh *minimized server* base |
-| 📆 **Release plan** | `sudo do-release-upgrade` to the next interim release every 6 months |
+| 🖥️ **OS** | Ubuntu **26.04 LTS today**, **26.10 interim from Oct 2026** — fresh *minimized server* base |
+| 📆 **Release plan** | `sudo do-release-upgrade` to the next interim release every 6 months (26.10 in Oct 2026) |
 | 🪟 **Desktop** | KDE Plasma 6 — full core, **Wayland only**, exactly two KDE apps (dolphin + konsole) |
+| 🗂️ **Tiling** | Kröhnkite 0.9.9.2 dynamic tiling (+ native KWin tiling fallback) |
 | 🧱 **Shell** | plasmashell — panels + widgets + tray (native) |
 | 🚀 **Launcher** | KRunner (Meta) |
 | 💻 **Terminal** | Konsole (KDE Plasma default) |
 | 🌍 **Browser** | Helium — Chromium fork, real `.deb`, no snap |
 | 🔑 **Login** | SDDM (breeze) |
+| 🔥 **Firewall** | firewalld + plasma-firewall KCM; firmware via fwupd |
 | 🖥️ **Display stack** | Wayland only (no X session); rootless Xwayland carries only KDE's tray bridges — user apps are Wayland-native |
 | 🎯 **Policy** | only necessary packages; no indexers, no snaps, no KDE app bundle — except dolphin + konsole |
