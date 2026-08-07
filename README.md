@@ -366,6 +366,7 @@ sudo update-grub
 | `~/.config/plasma-org.kde.plasma.desktop-appletsrc` | panel layout + widgets — **in repo** |
 | `~/.config/plasmashellrc` | shell settings — **in repo** |
 | `~/.config/kglobalshortcutsrc` | key bindings — **in repo** |
+| `~/.config/khotkeysrc` | KHotkeys custom commands (Kando on `Ctrl+Space`) — **in repo** |
 | `~/.config/kdeglobals` | colors, fonts, icons — **in repo** |
 | `~/.config/powermanagementprofilesrc` | power/backlight behavior — **in repo** |
 | `~/.config/konsole/` + `~/.local/share/konsole/` | terminal (stock defaults; nothing to track yet) |
@@ -718,6 +719,7 @@ applies via System Settings; key files:
 |---|---|
 | `~/.config/kwinrc` | effects, animations, window rules, screen edges |
 | `~/.config/kglobalshortcutsrc` | all key bindings |
+| `~/.config/khotkeysrc` | KHotkeys custom commands (Kando on `Ctrl+Space`) |
 | `~/.config/kdeglobals` | colors, fonts, icons, cursor |
 | `~/.config/plasma-org.kde.plasma.desktop-appletsrc` | panels + widgets layout |
 | `~/.config/plasmashellrc` | shell behavior |
@@ -782,10 +784,11 @@ Autostart apps: System Settings → Autostart (adds entries to `~/.config/autost
 
 | Keys | Action |
 |---|---|
-| `Meta` (or `Alt+F2`) | KRunner launcher |
-| `Ctrl+Alt+T` | Konsole (terminal) |
-| `Print` / `Shift+Print` / `Alt+Print` | Spectacle screenshots (area / screen / window) |
-| `Ctrl+Alt+T` | another terminal window |
+| `Meta` (or `Alt+F2` / `Meta+R`) | KRunner launcher |
+| `Meta+Return` (or `Ctrl+Alt+T`) | Konsole (terminal) |
+| `Meta+S` | Spectacle interactive region screenshot (hypr→KDE) |
+| `Print` / `Shift+Print` / `Alt+Print` | Spectacle defaults: full screen / region / window |
+| `Ctrl+Space` | Kando radial menu (KHotkeys custom) |
 | `Meta+E` | dolphin file manager (added 2026-08-06) |
 | `Ctrl+Esc` | system activity |
 
@@ -793,16 +796,23 @@ Autostart apps: System Settings → Autostart (adds entries to `~/.config/autost
 
 | Keys | Action |
 |---|---|
-| `Alt+Tab` | switch windows |
-| `Meta+Tab` | switch virtual desktops |
-| `Meta+Shift+Tab` | …backwards |
-| `Meta+Left/Right/Up/Down` | tile window to half/screen edge (KWin tiling) |
-| `Meta+W` | close window |
-| `Meta+Space` | switch input layout |
-| `Meta+PgUp/PgDn` | previous / next desktop |
-| `Meta+F11` | fullscreen |
-| `Meta+Shift+F11` | keep above others |
+| `Alt+Tab` / `Meta+Tab` | switch windows |
+| `Alt+Shift+Tab` / `Meta+Shift+Tab` | …backwards |
+| `Meta+Q` | close window |
+| `Meta+F` | fullscreen |
+| `Meta+PgUp` / `Meta+PgDown` | maximize / minimize |
+| `Meta+Ctrl+Shift+arrows` | move window to another desktop |
 | `Alt+F3` | window operations menu (move to desktop, more) |
+| `Meta+D` | peek at desktop |
+| `Meta+G` | grid view |
+| `Meta+1` … `Meta+9` / `Meta+0` | switch to desktop 1–10 (hypr→KDE) |
+| `Meta+Shift+1` … `Meta+Shift+0` | move window to desktop 1–10 |
+| `Meta+W` | overview |
+
+> [!TIP]
+> Ported from the old Hyprland setup: `Meta+N` is desktop **switching**, not
+> task-manager entry activation — the default Plasma `Meta+1…9` task-manager
+> binds are unbound (re-enable in System Settings → Shortcuts if wanted).
 
 ### 🪟 Kröhnkite (dynamic tiling)
 
@@ -814,14 +824,14 @@ Autostart apps: System Settings → Autostart (adds entries to `~/.config/autost
 
 | Keys | Action |
 |---|---|
-| `Meta+H` / `Meta+K` / `Meta+J` | focus left / up / down (vim-style) |
+| `Meta+Left` / `Right` / `Up` / `Down` | focus left / right / up / down |
 | `Meta+,` / `Meta+.` | focus previous / next |
-| `Meta+Shift+H` / `J` / `K` / `L` | move window left / down / up / right |
-| `Meta+Ctrl+H` / `J` / `K` / `L` | shrink width / grow height / shrink height / grow width |
+| `Meta+Shift+arrows` | move window left / right / up / down |
+| `Meta+Ctrl+Left` / `Right` / `Up` / `Down` | shrink width / grow width / shrink height / grow height |
 | `Meta+I` | increase ratio |
 | `Meta+\` / `Meta+\|` | next / previous layout |
-| `Meta+R` / `Meta+Shift+R` | rotate / rotate part |
-| `Meta+F` / `Meta+Shift+F` | toggle float (window) / float all |
+| `Meta+Space` / `Meta+Shift+F` | toggle float (window) / float all |
+| `Meta+Shift+R` | rotate part (rotate is unbound — `Meta+R` is KRunner) |
 | `Meta+M` | monocle layout |
 | `Meta+Shift+Return` | set master (remapped from the default `Meta+Return`) |
 
@@ -843,7 +853,7 @@ tracked in this repo) and are configurable in System Settings → Shortcuts.
 | Keys | Action |
 |---|---|
 | `Meta+L` | lock screen (kscreenlocker) |
-| `Ctrl+Alt+Del` | session menu |
+| `Meta+Shift+Q` (or `Ctrl+Alt+Del`) | logout — session menu |
 | `Ctrl+Alt+F2` | TTY escape hatch |
 
 > [!TIP]
@@ -1188,6 +1198,7 @@ existence (`Pin-Priority: -10`; `apt-cache policy snapd` → candidate `(none)`)
 | `~/.config/plasma-org.kde.plasma.desktop-appletsrc` | panel layout + widgets — **in repo** |
 | `~/.config/plasmashellrc` | shell settings — **in repo** |
 | `~/.config/kglobalshortcutsrc` | key bindings — **in repo** |
+| `~/.config/khotkeysrc` | KHotkeys custom commands (Kando on `Ctrl+Space`) — **in repo** |
 | `~/.config/kdeglobals` | colors, fonts, icons — **in repo** |
 | `~/.config/powermanagementprofilesrc` | power/backlight — **in repo** |
 | `~/.config/konsole/` + `~/.local/share/konsole/` | terminal (stock defaults, not tracked) |
