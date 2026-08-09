@@ -366,8 +366,8 @@ sudo update-grub
 | `~/.config/plasma-org.kde.plasma.desktop-appletsrc` | panel layout + widgets — **in repo** |
 | `~/.config/plasmashellrc` | shell settings — **in repo** |
 | `~/.config/kglobalshortcutsrc` | key bindings — **in repo** |
-| `~/.config/khotkeysrc` | KHotkeys custom commands (Kando on `Ctrl+Space`) — **in repo** |
-| `~/.config/kdeglobals` | colors, fonts, icons — **in repo** |
+| `~/.config/kdeglobals` | colors, fonts, icons, cursor — **in repo** |
+| `~/.config/gtk-3.0/` + `~/.config/gtk-4.0/` | GTK theme (Breeze-Dark + Inter) — **in repo** |
 | `~/.config/powermanagementprofilesrc` | power/backlight behavior — **in repo** |
 | `~/.config/konsole/` + `~/.local/share/konsole/` | terminal (stock defaults; nothing to track yet) |
 
@@ -391,6 +391,7 @@ sudo update-grub
 - [ ] `sudo systemctl disable udisks2` (dormant-at-idle, step 5e)
 - [ ] `dolphin` + `konsole` + `balooctl6 disable` (step 5f)
 - [ ] Install the Kröhnkite artifact from `vendor/krohnkite/` (`kpackagetool6 -t KWin/Script -i`) + enable
+- [ ] Install the window decoration from `vendor/aurorae/` (`cp -r ActiveAccentFrame ~/.local/share/aurorae/themes/`; kwinrc already sets `theme=ActiveAccentFrame`)
 - [ ] Enable + start `firewalld`, allow `ssh`; `systemctl enable --now fwupd` + `fwupdmgr refresh`
 - [ ] Copy configs from this repo (step 7)
 - [ ] Reboot → SDDM → log in → Plasma (Wayland)
@@ -719,7 +720,6 @@ applies via System Settings; key files:
 |---|---|
 | `~/.config/kwinrc` | effects, animations, window rules, screen edges |
 | `~/.config/kglobalshortcutsrc` | all key bindings |
-| `~/.config/khotkeysrc` | KHotkeys custom commands (Kando on `Ctrl+Space`) |
 | `~/.config/kdeglobals` | colors, fonts, icons, cursor |
 | `~/.config/plasma-org.kde.plasma.desktop-appletsrc` | panels + widgets layout |
 | `~/.config/plasmashellrc` | shell behavior |
@@ -728,10 +728,13 @@ applies via System Settings; key files:
 
 ### 🖼️ Panels & widgets (the "bar")
 
-Two default Plasma panels, configured in System Settings → Desktop:
+One floating top panel (46px), configured in System Settings → Desktop:
 
-- **Top panel** — app launcher, clock; the "bar" equivalent
-- **Bottom panel** — task manager, system tray (network/audio/power/clipboard)
+- **pager → global menu → system tray → clock**
+- No app launcher and no task manager by design: `Meta` opens Overview
+  (window picker = launcher), `Meta+1…6` switch desktops, `Alt+Tab` switches
+  windows, and Kröhnkite tiles everything anyway
+- `Alt+F1` still opens the kickoff launcher for emergencies
 
 Everything is movable: right-click a panel → Edit Mode. The layout lands in
 `plasma-org.kde.plasma.desktop-appletsrc` and is backed up to this repo.
@@ -759,14 +762,41 @@ the focused one (binary tree by default).
 
 Per-screen layout (stored in `screenDefaultLayout`): **binary tree**
 (`btreelayout`) on both `eDP-1` (internal) and `HDMI-A-4` — native
-`.25/.5/.25` KWin tiling is kept as a fallback. `directionalKeyFocus=true`,
-and `floatingClass` keeps `plasmashell`/`krunner` floating (never tiled).
+`.25/.5/.25` KWin tiling is kept as a fallback.
+
+| Option (kwinrc) | Value | Effect |
+|---|---|---|
+| `screenGap*` | `10` | 10px gaps around tiles and between them (kept even for a single window) |
+| `directionalKeyFocus` | `true` | `Alt+Arrow` moves focus between tiles (hypr→KDE feel) |
+| `keepTilingOnDrag` | `true` (default) | dragging a tiled window swaps tiles instead of floating it |
+| `newWindowPosition` | `0` (default) | new windows split the focused tile |
+| `floatingClass` | `plasmashell,,,org.kde.krunner,org.kde.plasmashell` | panels + KRunner never get tiled |
+| `ignoreScreen` | `org.kde.krunner` | KRunner's popup is not treated as a screen |
 
 Known Plasma-6.6 quirks (see [🛠️ Troubleshooting](#-troubleshooting--known-issues)):
 - **"Minimize all other windows"** is left **unbound** — it conflicts with
   Kröhnkite's focus handling.
 - The default **Squash** minimize animation misbehaves under Kröhnkite;
   switch to *None* or *Magic Lamp* if windows animate oddly.
+
+### 🪞 Window decoration — no titlebars, accent from wallpaper
+
+Windows have **no titlebar**: the Aurorae theme **Active Accent Frame**
+(vendored in `vendor/aurorae/`, pinned upstream commit) draws only a thin
+frame — **2px in the color scheme's accent** for the active window,
+background-colored for inactive ones.
+
+- **Adaptive accent**: with *Adaptive colors from wallpaper* enabled
+  (System Settings → Colors & Themes → Colors), the frame follows the
+  wallpaper's dominant color natively — no per-wallpaper theme picking.
+- `kdeglobals` pins `ColorScheme=Adaptive`; fonts are **Inter** + **JetBrains
+  Mono**, animations at 0.5× speed.
+- Install: `cp -r vendor/aurorae/ActiveAccentFrame ~/.local/share/aurorae/themes/`
+  (kwinrc already has `theme=ActiveAccentFrame` in `[org.kde.kdecoration2]`).
+- Known limits: maximized windows show no frame (Aurorae bug 451505);
+  `BorderSize` must stay `Normal` — `NoBorder` hides the frame entirely.
+- GTK apps get the same frameless frame via `kde-config-gtk-style`
+  (`window-decorations-gtk-module` in `gtk-3.0/settings.ini`, tracked in repo).
 
 ### 🚀 Startup
 
@@ -784,11 +814,11 @@ Autostart apps: System Settings → Autostart (adds entries to `~/.config/autost
 
 | Keys | Action |
 |---|---|
-| `Meta` (or `Alt+F2` / `Meta+R`) | KRunner launcher |
+| `Meta` | Overview (was `Meta+W` only; now also the bare key) |
+| `Meta+Space` (or `Alt+F2` / `Meta+R`) | KRunner launcher |
 | `Meta+Return` (or `Ctrl+Alt+T`) | Konsole (terminal) |
 | `Meta+S` | Spectacle interactive region screenshot (hypr→KDE) |
 | `Print` / `Shift+Print` / `Alt+Print` | Spectacle defaults: full screen / region / window |
-| `Ctrl+Space` | Kando radial menu (KHotkeys custom) |
 | `Meta+E` | dolphin file manager (added 2026-08-06) |
 | `Ctrl+Esc` | system activity |
 
@@ -807,7 +837,7 @@ Autostart apps: System Settings → Autostart (adds entries to `~/.config/autost
 | `Meta+G` | grid view |
 | `Meta+1` … `Meta+9` / `Meta+0` | switch to desktop 1–10 (hypr→KDE) |
 | `Meta+Shift+1` … `Meta+Shift+0` | move window to desktop 1–10 |
-| `Meta+W` | overview |
+| `Meta` / `Meta+W` | overview |
 
 > [!TIP]
 > Ported from the old Hyprland setup: `Meta+N` is desktop **switching**, not
@@ -830,10 +860,14 @@ Autostart apps: System Settings → Autostart (adds entries to `~/.config/autost
 | `Meta+Ctrl+Left` / `Right` / `Up` / `Down` | shrink width / grow width / shrink height / grow height |
 | `Meta+I` | increase ratio |
 | `Meta+\` / `Meta+\|` | next / previous layout |
-| `Meta+Space` / `Meta+Shift+F` | toggle float (window) / float all |
+| `Meta+Shift+Space` / `Meta+Shift+F` | toggle float (window) / float all |
 | `Meta+Shift+R` | rotate part (rotate is unbound — `Meta+R` is KRunner) |
 | `Meta+M` | monocle layout |
 | `Meta+Shift+Return` | set master (remapped from the default `Meta+Return`) |
+
+> [!NOTE]
+> `Meta+Space` was freed from Kröhnkite's toggle-float (now
+> `Meta+Shift+Space`) so KRunner could take it — the Hyprland-launcher feel.
 
 All bindings live in `kglobalshortcutsrc` under `[kwin]` (`Krohnkite*`,
 tracked in this repo) and are configurable in System Settings → Shortcuts.
@@ -1198,8 +1232,8 @@ existence (`Pin-Priority: -10`; `apt-cache policy snapd` → candidate `(none)`)
 | `~/.config/plasma-org.kde.plasma.desktop-appletsrc` | panel layout + widgets — **in repo** |
 | `~/.config/plasmashellrc` | shell settings — **in repo** |
 | `~/.config/kglobalshortcutsrc` | key bindings — **in repo** |
-| `~/.config/khotkeysrc` | KHotkeys custom commands (Kando on `Ctrl+Space`) — **in repo** |
-| `~/.config/kdeglobals` | colors, fonts, icons — **in repo** |
+| `~/.config/kdeglobals` | colors, fonts, icons, cursor — **in repo** |
+| `~/.config/gtk-3.0/` + `~/.config/gtk-4.0/` | GTK theme (Breeze-Dark + Inter) — **in repo** |
 | `~/.config/powermanagementprofilesrc` | power/backlight — **in repo** |
 | `~/.config/konsole/` + `~/.local/share/konsole/` | terminal (stock defaults, not tracked) |
 | `~/.config/opencode/opencode.jsonc` | opencode config (currently minimal) |

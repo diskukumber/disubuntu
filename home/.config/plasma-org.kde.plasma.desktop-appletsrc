@@ -27,29 +27,11 @@ wallpaperplugin=org.kde.image
 
 [Containments][22][Applets][23]
 immutability=1
-plugin=org.kde.plasma.kickoff
-
-[Containments][22][Applets][23][Configuration]
-popupHeight=400
-popupWidth=560
-
-[Containments][22][Applets][23][Configuration][General]
-favoritesPortedToKAstats=true
+plugin=org.kde.plasma.appmenu
 
 [Containments][22][Applets][24]
 immutability=1
 plugin=org.kde.plasma.pager
-
-[Containments][22][Applets][25]
-immutability=1
-plugin=org.kde.plasma.icontasks
-
-[Containments][22][Applets][25][Configuration][General]
-launchers=applications:systemsettings.desktop,preferred://browser
-
-[Containments][22][Applets][26]
-immutability=1
-plugin=org.kde.plasma.marginsseparator
 
 [Containments][22][Applets][27]
 activityId=
@@ -121,12 +103,8 @@ plugin=org.kde.plasma.digitalclock
 popupHeight=400
 popupWidth=560
 
-[Containments][22][Applets][38]
-immutability=1
-plugin=org.kde.plasma.showdesktop
-
 [Containments][22][General]
-AppletOrder=23;24;25;26;27;37;38
+AppletOrder=24;23;27;37
 
 [Containments][41]
 activityId=3fe55e0c-3cf8-4aab-b448-c48b63f9d8db
