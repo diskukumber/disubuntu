@@ -47,9 +47,9 @@ gum style --border double --padding "1 2" \
 gum spin --title "Baseline sanity (dpkg lock, repos)…" -- sleep 1
 
 # ── 1. packages ─────────────────────────────────────────────────────────────
-confirm_step "apt: kpackagetool6 firewalld plasma-firewall fwupd gum" && \
+confirm_step "apt: kpackagetool6 firewalld plasma-firewall fwupd gum ksystemstats" && \
 run "Installing packages (official Ubuntu repos)" \
-  sudo apt-get install -y kpackagetool6 firewalld plasma-firewall fwupd gum
+  sudo apt-get install -y kpackagetool6 firewalld plasma-firewall fwupd gum ksystemstats
 
 # ── 2. firewall (firewalld + plasma-firewall KCM) ───────────────────────────
 confirm_step "firewall: enable firewalld + allow ssh" && {
@@ -70,12 +70,16 @@ confirm_step "fwupd: refresh firmware metadata" && {
 # ── 4. configs from repo (plain copies — machine → repo is the backup flow) ──
 confirm_step "copy repo configs into ~/.config (kwinrc, kglobalshortcutsrc, …)" && {
   for f in kwinrc kglobalshortcutsrc kdeglobals \
-           plasma-org.kde.plasma.desktop-appletsrc plasmashellrc; do
+           plasma-org.kde.plasma.desktop-appletsrc plasmashellrc konsolerc; do
     if [[ -f "$REPO_DIR/home/.config/$f" ]]; then
       run "  $f" cp "$REPO_DIR/home/.config/$f" "$HOME/.config/$f"
     fi
   done
   run "  .bash_aliases" cp "$REPO_DIR/home/.bash_aliases" "$HOME/.bash_aliases"
+  if [[ -d "$REPO_DIR/home/.local/share/konsole" ]]; then
+    run "  konsole profile+colorscheme" \
+      cp -r "$REPO_DIR/home/.local/share/konsole" "$HOME/.local/share/"
+  fi
 }
 
 # ── 5. Kröhnkite (dynamic tiling, only third-party desktop component) ───────

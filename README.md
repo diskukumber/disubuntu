@@ -341,6 +341,12 @@ balooctl6 disable   # dolphin's hard dep baloo6 — keep zero background indexin
 `dolphin` = the file manager (`Meta+E`); `konsole` = the terminal
 (`Meta+Return`, second via `Ctrl+Alt+T`).
 
+**Konsole profile (2026-08-10):** `disubuntu.profile` + `disubuntu.colorscheme`
+live in `home/.local/share/konsole/` — JetBrains Mono 11pt, Breeze-Dark-tuned
+palette (bg `#202326`), **15% translucent + blur** so the wallpaper shows
+through (part of the look-and-feel pass). `konsolerc` pins
+`DefaultProfile=disubuntu.profile`.
+
 ---
 
 ### 6️⃣ NVIDIA driver follow-up (required after step 5)
@@ -369,7 +375,7 @@ sudo update-grub
 | `~/.config/kdeglobals` | colors, fonts, icons, cursor — **in repo** |
 | `~/.config/gtk-3.0/` + `~/.config/gtk-4.0/` | GTK theme (Breeze-Dark + Inter) — **in repo** |
 | `~/.config/powermanagementprofilesrc` | power/backlight behavior — **in repo** |
-| `~/.config/konsole/` + `~/.local/share/konsole/` | terminal (stock defaults; nothing to track yet) |
+| `~/.config/konsole/` + `~/.local/share/konsole/` | terminal — `disubuntu` profile + colorscheme **in repo** (`home/.local/share/konsole/`) + `konsolerc` |
 
 > [!NOTE]
 > **All configs are tracked in this repo** (`home/` mirrors `~`). They are
@@ -393,7 +399,8 @@ sudo update-grub
 - [ ] Install the Kröhnkite artifact from `vendor/krohnkite/` (`kpackagetool6 -t KWin/Script -i`) + enable
 - [ ] Install the window decoration from `vendor/aurorae/` (`cp -r ActiveAccentFrame ~/.local/share/aurorae/themes/`; kwinrc already sets `theme=ActiveAccentFrame`)
 - [ ] Enable + start `firewalld`, allow `ssh`; `systemctl enable --now fwupd` + `fwupdmgr refresh`
-- [ ] Copy configs from this repo (step 7)
+- [ ] Install `ksystemstats` (panel CPU/Memory monitor daemon)
+- [ ] Copy configs from this repo (step 7 — incl. the `disubuntu` Konsole profile)
 - [ ] Reboot → SDDM → log in → Plasma (Wayland)
 - [ ] `pgrep -a kwin_wayland` + `pgrep -a plasmashell` → desktop up
 
@@ -571,7 +578,8 @@ What runs, what each piece does, and every installed package by category.
 | **Screenshots** | **KDE Spectacle** | Plasma's native tool; `Print` family |
 | **Status bar / tray** | plasmashell panels | native network (plasma-nm), audio (plasma-pa), power (powerdevil) applets |
 | **Browser** | **Helium** (`helium-bin`, .deb repo) | Chromium fork with Chrome-extension support; real .deb, no snap |
-| **Terminal** | **Konsole** | KDE Plasma default, Wayland native |
+| **Terminal** | **Konsole** | KDE Plasma default, Wayland native — `disubuntu` profile (JetBrains Mono 11, 15% translucent, blur) |
+| **System monitor** | **ksystemstats** + native System Monitor applets | CPU + Memory widgets in the panel (added 2026-08-10, no third-party widgets) |
 | **File manager** | **Dolphin** | added 2026-08-06 (`Meta+E`); uses the dormant `udisks2` for mounting |
 | **Clipboard** | Plasma clipboard + **wl-clipboard** | both installed; plasma's clipboard has history |
 | **Backlight keys** | **powerdevil** | Plasma's power management handles brightness natively |
@@ -622,7 +630,8 @@ What runs, what each piece does, and every installed package by category.
 
 | Package | Purpose |
 |---|---|
-| `konsole` | terminal emulator (default) |
+| `konsole` | terminal emulator (default) — `disubuntu` translucent profile |
+| `ksystemstats` | system-stats daemon backing the panel's CPU/Memory monitor applets |
 | `dolphin` | file manager (`Meta+E`) — added 2026-08-06 |
 | `helium-bin` | the browser (real .deb) |
 | `wl-clipboard` | `wl-copy` / `wl-paste` |
@@ -656,9 +665,10 @@ niri/quickshell — `cargo` · `rustc` · `pkg-config` (re-pulled as an
 | `powerdevil` | 1 | power management |
 | `xdg-desktop-portal*` (kde + document + permission) | 2-3 | portals |
 | `pipewire` + `pipewire-pulse` + `wireplumber` | 3 | audio |
-| **total** | **~30** | session processes with the browser closed (systemd on top); ~75 with Helium + its crashpad open |
+| `ksystemstats` | 1 | system-monitor daemon (panel CPU/Memory applets) |
+| **total** | **~31** | session processes with the browser closed (systemd on top); ~75 with Helium + its crashpad open |
 
-That's the honest cost of a full desktop: **~30 session processes at idle**
+That's the honest cost of a full desktop: **~31 session processes at idle**
 (including Plasma's own helper daemons — kwalletd6, ksecretd, gnome-keyring,
 at-spi a11y, dconf, the two Xwayland tray bridges, plus KWin's rootless
 Xwayland), vs ~2 with the hand-rolled niri stack — in exchange for the
@@ -730,9 +740,11 @@ applies via System Settings; key files:
 
 One floating top panel (46px), configured in System Settings → Desktop:
 
-- **pager → global menu → system tray → clock**
-- No app launcher and no task manager by design: `Meta` opens Overview
-  (window picker = launcher), `Meta+1…6` switch desktops, `Alt+Tab` switches
+- **pager → global menu → system tray → CPU → memory → clock**
+  (System Monitor CPU/Memory applets added 2026-08-10, backed by the
+  `ksystemstats` daemon — native, no third-party widgets)
+- No app launcher and no task manager by design: `Meta` opens KRunner,
+  `Meta+W` the Overview, `Meta+1…6` switch desktops, `Alt+Tab` switches
   windows, and Kröhnkite tiles everything anyway
 - `Alt+F1` still opens the kickoff launcher for emergencies
 
@@ -743,10 +755,22 @@ Everything is movable: right-click a panel → Edit Mode. The layout lands in
 
 | Setting | What it does |
 |---|---|
-| Effects: wobbly windows, blur, overview | tuned in System Settings → Desktop Effects |
-| Window rules | per-app behavior (e.g. helium always floating) |
+| Effects: blur, glide, fade, magic-lamp minimize, fall apart, scale, slide, dim-inactive, blend-changes | tuned in System Settings → Desktop Effects — all built-in, no wobbly windows |
+| Window rules | none — Kröhnkite floats panels + polkit via `floatingClass`, dialogs float natively |
 | Screen edges | corners → overview / desktop grid |
-| Tiling | drag to edges for split; native tiling layout system kept as fallback |
+| Tiling | Kröhnkite owns tile drags (`BorderSnapZone=0` — KWin edge-snap off); native tiling layout system kept as fallback (`Meta+T`) |
+
+### 🖱️ Focus, placement & animations (2026-08-10 pass)
+
+| Setting (`kwinrc`) | Value | Effect |
+|---|---|---|
+| `[Windows] FocusPolicy` | `FocusFollowsMouse` | hover activates a window — no click needed (the "tiling WM feel" from the video pass) |
+| `[Windows] ActiveMouseScreen` | `true` | the screen under the pointer is the active one (pairs with `SeparateScreenFocus=true`) |
+| `[Windows] Placement` | `Centered` | every new *floating* window opens centered — dialogs, polkit prompt, KRunner |
+| `[Windows] BorderSnapZone` | `0` | KWin edge-snap off — drags belong to Kröhnkite's tile-swap |
+| `[TabBox] MultiScreenMode` | `1` | **independent per-screen desktops** — switching on one monitor doesn't touch the other |
+| `[KDE] AnimationDurationFactor` | `0.5` | snappy 2×-speed animations (mechanical, not sluggish) |
+| `[Plugins]` minimize/close | magic-lamp + fall-apart | smooth suck-into-panel minimize; subtle shatter on close — `squashEnabled=false` (the one that glitches under Kröhnkite) |
 
 ### 🪟 Kröhnkite — dynamic tiling (2026-08-07)
 
@@ -767,24 +791,48 @@ Per-screen layout (stored in `screenDefaultLayout`): **binary tree**
 | Option (kwinrc) | Value | Effect |
 |---|---|---|
 | `screenGap*` | `10` | 10px gaps around tiles and between them (kept even for a single window) |
-| `directionalKeyFocus` | `true` | `Alt+Arrow` moves focus between tiles (hypr→KDE feel) |
+| `directionalKeyFocus` | `true` | `Meta+Arrow` moves focus between tiles (hypr→KDE feel) |
 | `keepTilingOnDrag` | `true` (default) | dragging a tiled window swaps tiles instead of floating it |
 | `newWindowPosition` | `0` (default) | new windows split the focused tile |
-| `floatingClass` | `plasmashell,,,org.kde.krunner,org.kde.plasmashell` | panels + KRunner never get tiled |
-| `ignoreScreen` | `org.kde.krunner` | KRunner's popup is not treated as a screen |
+| `floatingClass` | `plasmashell,,,org.kde.krunner,org.kde.plasmashell,org.kde.polkit-kde-authentication-agent-1` | panels, KRunner and the polkit prompt never get tiled |
+
+> [!NOTE]
+> `ignoreScreen` is **not used** — it matches *screen names* (eDP-1, …), not
+> window classes, so it would be dead config. Panels/polkit float via
+> `floatingClass` above; dialogs float via Kröhnkite's built-in `floatUtility`.
 
 Known Plasma-6.6 quirks (see [🛠️ Troubleshooting](#-troubleshooting--known-issues)):
 - **"Minimize all other windows"** is left **unbound** — it conflicts with
   Kröhnkite's focus handling.
 - The default **Squash** minimize animation misbehaves under Kröhnkite;
-  switch to *None* or *Magic Lamp* if windows animate oddly.
+  **Magic Lamp** is used instead (`magiclampEnabled=true`, `squashEnabled=false`).
+
+### 🤝 Kröhnkite ⟷ KWin — the coexistence contract
+
+Kröhnkite and KWin split the work explicitly so nothing fights:
+
+| Concern | Owner | How |
+|---|---|---|
+| Auto-arrange tiled windows, layouts, focus | **Kröhnkite** | binary-tree layouts per screen |
+| Where *floating* windows land | **KWin** | `Placement=Centered` — new floats open centered |
+| Float-by-default (panels, KRunner, polkit prompt) | **Kröhnkite** | `floatingClass` + built-in `floatUtility`/`ignoreClass` (polkit is also a default ignore) |
+| Drag-to-arrange tiles | **Kröhnkite** | tile-swap on drag — KWin edge-snap off (`BorderSnapZone=0`) so it never steals the drag |
+| Window ops (close, fullscreen, peek, switch) | **KWin** | Plasma defaults |
+| Custom `.25/.5/.25` native layouts | **KWin** (fallback) | `[Tiling]` sections kept; `Meta+T` editor still reachable |
+
+**Binding arbitration** — KWin's binds that overlapped Kröhnkite's are
+**unbound** in `kglobalshortcutsrc`: `Meta+Ctrl+arrows` (Switch One Desktop —
+frees Kröhnkite Shrink/Grow), `Meta+arrows` (Quick Tile — frees directional
+focus), `Meta+Shift+Left/Right` (Move to Screen — frees Move window).
+KDE's own binds keep their Plasma meaning: `Meta+D` (show desktop), `Meta+T`
+(edit tiles), `Meta+L` (lock session), `Alt+Tab` (walk windows).
 
 ### 🪞 Window decoration — no titlebars, accent from wallpaper
 
 Windows have **no titlebar**: the Aurorae theme **Active Accent Frame**
-(vendored in `vendor/aurorae/`, pinned upstream commit) draws only a thin
-frame — **2px in the color scheme's accent** for the active window,
-background-colored for inactive ones.
+(vendored in `vendor/aurorae/`, pinned upstream commit) draws only a frame —
+**6px on all sides** (local mod, 2026-08-10) in the color scheme's accent for
+the active window, background-colored for inactive ones.
 
 - **Adaptive accent**: with *Adaptive colors from wallpaper* enabled
   (System Settings → Colors & Themes → Colors), the frame follows the
@@ -797,6 +845,8 @@ background-colored for inactive ones.
   `BorderSize` must stay `Normal` — `NoBorder` hides the frame entirely.
 - GTK apps get the same frameless frame via `kde-config-gtk-style`
   (`window-decorations-gtk-module` in `gtk-3.0/settings.ini`, tracked in repo).
+  Qt/GTK look-and-feel is consistent: `gtk-theme-name=Breeze-Dark` in both
+  `gtk-3.0/` and `gtk-4.0/settings.ini`, breeze-dark icons, Inter font.
 
 ### 🚀 Startup
 
@@ -814,12 +864,13 @@ Autostart apps: System Settings → Autostart (adds entries to `~/.config/autost
 
 | Keys | Action |
 |---|---|
-| `Meta` | Overview (was `Meta+W` only; now also the bare key) |
-| `Meta+Space` (or `Alt+F2` / `Meta+R`) | KRunner launcher |
+| `Meta` | KRunner launcher (bare key, 2026-08-10 — the "Rofi replacement" from the video pass) |
+| `Meta+Space` (or `Meta+R` / `Alt+F2`) | KRunner launcher |
 | `Meta+Return` (or `Ctrl+Alt+T`) | Konsole (terminal) |
 | `Meta+S` | Spectacle interactive region screenshot (hypr→KDE) |
 | `Print` / `Shift+Print` / `Alt+Print` | Spectacle defaults: full screen / region / window |
 | `Meta+E` | dolphin file manager (added 2026-08-06) |
+| `Meta+W` | Overview |
 | `Ctrl+Esc` | system activity |
 
 ### 🪟 Windows
@@ -835,9 +886,9 @@ Autostart apps: System Settings → Autostart (adds entries to `~/.config/autost
 | `Alt+F3` | window operations menu (move to desktop, more) |
 | `Meta+D` | peek at desktop |
 | `Meta+G` | grid view |
-| `Meta+1` … `Meta+9` / `Meta+0` | switch to desktop 1–10 (hypr→KDE) |
+| `Meta+1` … `Meta+6` | switch to desktop 1–6 (active since 2026-08-10; `Meta+F#`/`Ctrl+F#` kept) |
 | `Meta+Shift+1` … `Meta+Shift+0` | move window to desktop 1–10 |
-| `Meta` / `Meta+W` | overview |
+| `Meta+W` | overview |
 
 > [!TIP]
 > Ported from the old Hyprland setup: `Meta+N` is desktop **switching**, not
@@ -859,7 +910,7 @@ Autostart apps: System Settings → Autostart (adds entries to `~/.config/autost
 | `Meta+Shift+arrows` | move window left / right / up / down |
 | `Meta+Ctrl+Left` / `Right` / `Up` / `Down` | shrink width / grow width / shrink height / grow height |
 | `Meta+I` | increase ratio |
-| `Meta+\` / `Meta+\|` | next / previous layout |
+| `Meta+\,` / `Meta+\` | focus previous window / next layout (bound 2026-08-10) |
 | `Meta+Shift+Space` / `Meta+Shift+F` | toggle float (window) / float all |
 | `Meta+Shift+R` | rotate part (rotate is unbound — `Meta+R` is KRunner) |
 | `Meta+M` | monocle layout |
@@ -1027,16 +1078,18 @@ This works **without any X11 config** — KWin handles multi-GPU natively.
 - [x] **2026-08-07 desktop pass:** firewalld + plasma-firewall KCM (host firewall, `ssh`+`dhcpv6-client` on `public` zone), fwupd + `fwupd-refresh.timer`, and **Kröhnkite 0.9.9.2** dynamic tiling (installed, enabled, live-tested; artifact vendored in `vendor/krohnkite/`).
 - [x] **Theme decision:** Breeze Dark is the default (`kdeglobals` tracked).
 - [x] **setup.sh** exists as a gum-powered TUI stub (`bash setup.sh --check` to dry-run) — full flow lands in the dev pass.
+- [x] **2026-08-10 look & feel + tiling pass:** focus-follows-mouse, centered floats, per-screen desktops, Kröhnkite↔KWin binding cleanup (10 unbinds + `Meta+\,`/`Meta+\` bound), bare `Meta`→KRunner + `Meta+1–6` desktops, magic-lamp minimize + fall-apart, 6px accent frame, translucent `disubuntu` Konsole profile, CPU/Memory panel monitor applets (+`ksystemstats`), Qt/GTK theme consistency.
 
 ### 🚧 Open
 
 - [ ] **Panel/layout finalization** — arrange panels + widgets to taste (top bar vs bottom taskbar, tray items) — the current layout is already backed up here.
-- [ ] Wallpaper — Plasma's own wallpaper engine; pick one (or keep the dark default).
+- [ ] Wallpaper — Plasma's own wallpaper engine; pick one (or keep the current solid color).
 - [ ] Bluetooth: not installed yet (bluez optional).
 - [ ] Autostart list: confirm what starts with the session.
 - [ ] **Dev tools: none for now** — Docker / Node / Rust / Go land "when needed" in the dev pass (setup.sh will grow the steps).
 - [ ] **Timeshift** snapshots: decided *maybe later* — the repo-backed configs + interim cadence cover the reset story for now.
 - [ ] **Secure Boot + TPM-FDE (LUKS2):** future goal, deferred to the **next clean install** (not applied to this machine).
+- [ ] **Machine → repo backup routine** — the 2026-08-10 writeback incident (dying kglobalacceld clobbering `kglobalshortcutsrc`) showed the repo copy can go stale after a kwin restart; make `bash setup.sh --backup` a habit after binding edits (or automate it in setup.sh).
 
 ### 📆 Release cadence
 
@@ -1105,6 +1158,7 @@ This works **without any X11 config** — KWin handles multi-GPU natively.
 | Apps look wrong / huge | Missing fonts → `fc-list \| grep Inter`; install `fonts-inter`. |
 | Bluetooth audio glitches | `systemctl --user status pipewire wireplumber`; reboot if needed (bluez not installed — see WIP). |
 | Suspend/resume broken | Known hybrid-GPU quirk. `journalctl -b -1 \| grep -i nvidia`; reboot usually clears it. |
+| Global shortcuts dead / `kglobalacceld` exits instantly | **Normal on Wayland, don't chase it.** `kglobalacceld` is a deliberate no-op when `XDG_SESSION_TYPE=wayland` (exits 0 silently, by design — see `src/main.cpp` upstream); **kwin_wayland itself provides `org.kde.kglobalaccel`**. Verify with `pgrep -a kwin_wayland` + `qdbus6 org.kde.kglobalaccel /kglobalaccel allMainComponents`, not the daemon. |
 
 ### ⚠️ Known issues
 
@@ -1117,6 +1171,7 @@ This works **without any X11 config** — KWin handles multi-GPU natively.
 | 🪟 **"Minimize all other windows"** (Plasma 6.6) conflicts with Kröhnkite | left **unbound** by design; don't bind it (breaks focus/tiling) |
 | 🪟 **Squash minimize animation** glitches under Kröhnkite | use *None* or *Magic Lamp* as the minimize effect if windows animate oddly |
 | 🔥 **Meta+D / Meta+T / Meta+L** don't tile (KDE won the conflict) | intentional — KDE's show-desktop / edit-tiles / lock-session keep those keys; Kröhnkite's versions stay unbound |
+| ⚠️ **`kglobalacceld` can rewrite `kglobalshortcutsrc` while dying** (2026-08-10) | an X11-connected kglobalacceld that loses Xwayland during a `kwin_wayland --replace` flushes its in-memory state on exit — it can clobber recent binding changes. After any binding edit + kwin restart, re-`cp` the file into the repo |
 
 ### 🔬 Checking the whole stack at once
 
@@ -1397,7 +1452,7 @@ The reproducible installer for this machine, as a **gum-powered TUI**
 |---|---|
 | **Status** | **WIP stub** — covers the 2026-08-07 desktop pass; the dev-tools pass (Docker/Node/Rust/Go) and the full reinstall flow are next |
 | **Run it** | `bash setup.sh` (or `bash setup.sh --check` to preview) |
-| **Steps** | 1) apt: kpackagetool6, firewalld, plasma-firewall, fwupd, gum · 2) enable firewalld + allow `ssh` · 3) `fwupdmgr refresh` · 4) copy tracked configs from `home/` into `~/.config` · 5) install + enable Kröhnkite from `vendor/krohnkite/` and reconfigure KWin |
+| **Steps** | 1) apt: kpackagetool6, firewalld, plasma-firewall, fwupd, gum, ksystemstats · 2) enable firewalld + allow `ssh` · 3) `fwupdmgr refresh` · 4) copy tracked configs from `home/` into `~/.config` (+ the `disubuntu` Konsole profile into `~/.local/share/konsole`) · 5) install + enable Kröhnkite from `vendor/krohnkite/` and reconfigure KWin |
 | **Idempotent** | safe to re-run — packages/script/config already present are skipped |
 | **Order matters** | configs land **before** the Kröhnkite enable+reconfigure, so the tracked `kwinrc`/`kglobalshortcutsrc` (with `[Script-krohnkite]` and the `Krohnkite*` binds) apply cleanly |
 
@@ -1411,7 +1466,7 @@ management, network/audio applets, settings) was hand-built or missing. Plasma
 6 gives the *complete* desktop — widgets, settings, lock, power, tray,
 screenshots — as one supported, pure-Wayland unit. The lean rules still apply:
 no indexers, no snaps, no app bundle — **except** dolphin (file manager) and
-konsole (terminal), adopted 2026-08-06. Cost: ~30 idle session
+konsole (terminal), adopted 2026-08-06. Cost: ~31 idle session
 processes (incl. KWin's rootless Xwayland + its tray bridges) and ~480 more
 packages (Qt6 + KF6).
 Details in [step 9](#9️⃣-the-niri--plasma-migration-done-2026-08-06).

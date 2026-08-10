@@ -13,8 +13,9 @@ the active-window frame follows the wallpaper accent natively.
 
 ## Local modification
 
-`ActiveAccentFramerc` — borders trimmed to 2px all around (upstream: 4/4/5/5)
-for the thin-frame look. `Shadow=true`, `TitleHeight=0`, `ButtonHeight=0`
+`ActiveAccentFramerc` — borders widened to **6px on all sides** (upstream:
+4/4/5/5; original vendored version: 2px) so the accent frame stays clearly
+visible on a 1080p panel. `Shadow=true`, `TitleHeight=0`, `ButtonHeight=0`
 unchanged.
 
 ## Install

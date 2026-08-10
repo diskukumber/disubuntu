@@ -9,20 +9,22 @@ Number=6
 Rows=1
 
 [Plugins]
-MinimizeAnimationEnabled=false
+MinimizeAnimationEnabled=true
 blendchangesEnabled=true
 blurEnabled=true
 diminactiveEnabled=true
 fadeEnabled=true
 glideEnabled=true
 krohnkiteEnabled=true
+magiclampEnabled=true
+squashEnabled=false
+fallapartEnabled=true
 scaleEnabled=true
 slideEnabled=true
 
 [Script-krohnkite]
 directionalKeyFocus=true
-floatingClass=plasmashell,,,org.kde.krunner,org.kde.plasmashell
-ignoreScreen=org.kde.krunner
+floatingClass=plasmashell,,,org.kde.krunner,org.kde.plasmashell,org.kde.polkit-kde-authentication-agent-1
 screenDefaultLayout=eDP-1:btreelayout,HDMI-A-4:btreelayout
 screenGapBetween=10
 screenGapBottom=10
@@ -79,7 +81,10 @@ padding=4
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
 
 [Windows]
-ActiveMouseScreen=false
+ActiveMouseScreen=true
+BorderSnapZone=0
+FocusPolicy=FocusFollowsMouse
+Placement=Centered
 SeparateScreenFocus=true
 
 [Xwayland]
@@ -93,3 +98,9 @@ BorderSize=Normal
 ButtonsOnLeft=
 ButtonsOnRight=
 theme=ActiveAccentFrame
+
+[TabBox]
+MultiScreenMode=1
+
+[KDE]
+AnimationDurationFactor=0.5

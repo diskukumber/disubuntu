@@ -14,7 +14,11 @@ immutability=1
 lastScreen=0
 location=0
 plugin=org.kde.plasma.folder
-wallpaperplugin=org.kde.image
+wallpaperplugin=org.kde.color
+
+[Containments][21][ConfigDialog]
+DialogHeight=630
+DialogWidth=810
 
 [Containments][22]
 activityId=
@@ -91,6 +95,10 @@ plugin=org.kde.plasma.brightness
 immutability=1
 plugin=org.kde.plasma.battery
 
+[Containments][22][Applets][27][Applets][42]
+immutability=1
+plugin=org.kde.plasma.mediacontroller
+
 [Containments][22][Applets][27][General]
 extraItems=org.kde.kscreen,org.kde.plasma.manage-inputmethod,org.kde.plasma.brightness,org.kde.plasma.clipboard,org.kde.plasma.notifications,org.kde.plasma.devicenotifier,org.kde.plasma.mediacontroller,org.kde.plasma.keyboardlayout,org.kde.plasma.cameraindicator,org.kde.plasma.volume,org.kde.plasma.networkmanagement,org.kde.plasma.battery
 knownItems=org.kde.kscreen,org.kde.plasma.manage-inputmethod,org.kde.plasma.brightness,org.kde.plasma.clipboard,org.kde.plasma.notifications,org.kde.plasma.devicenotifier,org.kde.plasma.mediacontroller,org.kde.plasma.keyboardlayout,org.kde.plasma.cameraindicator,org.kde.plasma.volume,org.kde.plasma.networkmanagement,org.kde.plasma.battery
@@ -103,8 +111,46 @@ plugin=org.kde.plasma.digitalclock
 popupHeight=400
 popupWidth=560
 
+[Containments][22][Applets][43]
+immutability=1
+plugin=org.kde.plasma.systemmonitor.cpu
+
+[Containments][22][Applets][43][Configuration]
+CurrentPreset=org.kde.plasma.systemmonitor
+
+[Containments][22][Applets][43][Configuration][Appearance]
+chartFace=org.kde.ksysguard.piechart
+title=Total CPU Use
+
+[Containments][22][Applets][43][Configuration][SensorColors]
+cpu/all/usage=61,174,233
+
+[Containments][22][Applets][43][Configuration][Sensors]
+highPrioritySensorIds=["cpu/all/usage"]
+lowPrioritySensorIds=["cpu/all/cpuCount","cpu/all/coreCount"]
+totalSensors=["cpu/all/usage"]
+
+[Containments][22][Applets][44]
+immutability=1
+plugin=org.kde.plasma.systemmonitor.memory
+
+[Containments][22][Applets][44][Configuration]
+CurrentPreset=org.kde.plasma.systemmonitor
+
+[Containments][22][Applets][44][Configuration][Appearance]
+chartFace=org.kde.ksysguard.piechart
+title=Memory Usage
+
+[Containments][22][Applets][44][Configuration][SensorColors]
+memory/physical/used=61,174,233
+
+[Containments][22][Applets][44][Configuration][Sensors]
+highPrioritySensorIds=["memory/physical/used"]
+lowPrioritySensorIds=["memory/physical/total"]
+totalSensors=["memory/physical/usedPercent"]
+
 [Containments][22][General]
-AppletOrder=24;23;27;37
+AppletOrder=24;23;27;43;44;37
 
 [Containments][41]
 activityId=3fe55e0c-3cf8-4aab-b448-c48b63f9d8db
@@ -113,7 +159,14 @@ immutability=1
 lastScreen=1
 location=0
 plugin=org.kde.plasma.folder
-wallpaperplugin=org.kde.image
+wallpaperplugin=org.kde.color
+
+[Containments][41][ConfigDialog]
+DialogHeight=630
+DialogWidth=810
+
+[Containments][41][Wallpaper][org.kde.color][General]
+Color=73,166,234
 
 [ScreenMapping]
 itemsOnDisabledScreens=
