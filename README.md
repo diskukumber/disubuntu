@@ -1,22 +1,18 @@
 # 🐧 disubuntu · Ubuntu interim
 
 An **Ubuntu interim-based setup, lean by design** — a pure-Wayland desktop on
-**KDE Plasma 6** (minimal, full-functional core: only two KDE apps — dolphin +
-konsole, no indexers, no snaps) that gets refreshed on the **6-month interim
-release cadence**.
+**KDE Plasma 6** (minimal, full-functional core: exactly two KDE apps —
+dolphin + konsole, no indexers, no snaps) that gets refreshed on the
+**6-month interim release cadence**.
 
 | Summary | |
 |---|---|
-| 🖥️ **OS** | Ubuntu **26.04 LTS (Resolute)** today → **26.10 (Stonking Stingray)** interim via `do-release-upgrade` in Oct 2026 — Server *minimized* base |
+| 🖥️ **OS** | Ubuntu **26.04 LTS (Resolute)** → **26.10 (Stonking Stingray)** interim via `do-release-upgrade` — Server *minimized* base |
 | 🪟 **Desktop** | [KDE Plasma 6](https://kde.org/plasma-desktop/) — **Wayland only** (`kwin_wayland`), full core: widgets, panels, settings — exactly two KDE apps: dolphin + konsole |
 | 🗂️ **Tiling** | **Kröhnkite** (dynamic tiling KWin script, only third-party component) + native KWin tiling fallback |
 | 🔥 **Firewall** | firewalld + plasma-firewall KCM (`public` zone, `ssh`+`dhcpv6-client`) · firmware via fwupd |
 | 🔑 **Login** | [SDDM](https://github.com/sddm/sddm) (breeze theme) — native Plasma display manager |
 | 🎨 **GPU** | Intel UHD (iGPU, panel + scanout) + NVIDIA RTX 2060 (dGPU, renders via modeset=1 set in `/etc/modprobe.d`) |
-
-> [!IMPORTANT]
-> 🚧 **Still under development** — this documentation is updated as the setup develops.
-> The niri→Plasma migration is documented in [step 9](#9️⃣-the-niri--plasma-migration-done-2026-08-06).
 
 ---
 
@@ -25,27 +21,23 @@ release cadence**.
 | Section | Covers |
 |---|---|
 | [📸 Screenshots](#-screenshots) | how screenshots are taken & where they land |
-| [📥 Installation](#-installation) | the full path: minimized server ISO → strip to a pure base → interim cadence → every package, in order |
+| [📥 Installation](#-installation) | the full path: minimized server ISO → strip to a pure base → interim cadence → minimal Plasma → every package, in order |
 | [🖥️ Hardware](#-hardware) | the machine: CPU, RAM, storage, dual-GPU hybrid graphics |
 | [🧩 Software stack & package inventory](#-software-stack--package-inventory) | the diagram, who does what, every package, process count |
 | [🚀 Session Startup](#-session-startup) | SDDM → Plasma (Wayland) boot chain |
 | [🎛️ KWin & Plasma Configuration](#-kwin--plasma-configuration) | kwinrc, panels, shortcuts — section by section (incl. Kröhnkite tiling) |
 | [⌨️ Key Bindings](#-key-bindings) | the KDE default + custom cheat sheet (incl. Kröhnkite) |
 | [🎮 NVIDIA](#-nvidia) | driver, modeset, VRAM fix, groups, diagnostics |
-| [🚧 Work In Progress](#-work-in-progress) | what's done, what's open, the 6-month release plan |
-| [📦 Packages & Details](#-packages--details) | the one-glance component table |
 | [🛠️ Troubleshooting & Known Issues](#-troubleshooting--known-issues) | symptom→fix table, logs, recovery recipes |
-| [🧹 Maintenance & Service Inventory](#-maintenance--service-inventory) | cleanup, services, dotfiles, routine care |
-| [📜 Provisioning & Baseline](#-provisioning--baseline) | fresh-install baseline, install/reset commands |
+| [🧹 Maintenance & Service Inventory](#-maintenance--service-inventory) | services, dotfiles, routine care, reset |
 | [🤖 setup.sh](#-setup-sh) | the plain-bash installer (no gum) — `bash setup.sh --check` |
-| [❓ FAQ](#-faq) | quick answers: why Plasma, why interim, how to update/reset |
-| [ℹ️ Quick facts](#-quick-facts) | TL;DR summary |
+| [❓ FAQ](#-faq) | quick answers: why interim, how to update/reset |
 
 ---
 
 ## 📸 Screenshots
 
-Screenshots use **KDE Spectacle** (small, native Wayland — no grim/slurp):
+Screenshots use **KDE Spectacle** (small, native Wayland):
 
 | Keys | What it captures |
 |---|---|
@@ -153,7 +145,7 @@ purges in step 3.
 | `modemmanager` | mobile-broadband modem daemon | no SIM slot |
 | `lxd-installer` | LXD container wrapper | no containers |
 | `avahi-daemon` | mDNS/Bonjour | nothing here uses it |
-| `udisks2` | storage D-Bus daemon | no file manager needs it (note: *Plasma pulls it back — see step 5c note*) |
+| `udisks2` | storage D-Bus daemon | no file manager needs it (note: *Plasma pulls it back — see step 5e*) |
 | `networkd-dispatcher` | systemd-networkd event handler | we use NetworkManager, not networkd |
 
 **🟡 Optional — your call (safe either way):**
@@ -206,38 +198,33 @@ coreutils, apt. Everything else that runs later is something *we* added.
 
 ---
 
-### 3️⃣ f. De-brand — no Canonical/Ubuntu theming (2026-08-11)
+### 3f. De-brand — no Canonical/Ubuntu theming
 
 The Ubuntu branding that survives the server base is **login-time only** — the
-running desktop is already 100% native (Breeze Dark, no Canonical wallpapers,
-no Yaru, no plymouth). What remains and how it's removed:
+desktop itself is 100% native (Breeze Dark, no Canonical wallpapers, no Yaru,
+no plymouth). What remains and how it's removed:
 
 ```bash
 # SDDM's orphaned Ubuntu login theme — never active (/etc/sddm.conf: Current=breeze)
 sudo rm -rf /usr/share/sddm/themes/ubuntu-theme
 
-# MOTD at SSH/console login: Ubuntu ASCII logo + help + Canonical news + notices
-sudo chmod -x /etc/update-motd.d/00-header      # Ubuntu logo + version
-sudo chmod -x /etc/update-motd.d/10-help-text   # help/links text
-sudo chmod -x /etc/update-motd.d/50-motd-news   # Canonical news feed (network!)
-sudo chmod -x /etc/update-motd.d/60-unminimize  # 'restore full install' notice
-sudo chmod -x /etc/update-motd.d/91-release-upgrade  # new-release notice
+# MOTD at SSH/console login: Ubuntu ASCII logo, help text, news feed, notices
+sudo chmod -x /etc/update-motd.d/00-header \
+              /etc/update-motd.d/10-help-text \
+              /etc/update-motd.d/50-motd-news \
+              /etc/update-motd.d/60-unminimize \
+              /etc/update-motd.d/91-release-upgrade
 
-# Kill the Canonical news service at the source (timer + config)
+# Kill the Canonical news service at the source (config + timer)
 sudo tee /etc/default/motd-news > /dev/null <<'EOF'
 ENABLED=0
-
-# Ubuntu motd-news config
-# ENABLED=0 disables the Canonical news feed
 EOF
 sudo systemctl disable --now motd-news.timer
 ```
 
 **Kept on purpose** (functional, not theming): `/etc/os-release` +
 `/etc/lsb-release` (required by `ubuntu-release-upgrader` for the interim
-cadence), `85-fwupd` + `92-unattended-upgrades` MOTD notices (useful status),
-`/usr/share/pixmaps/ubuntu-logo*` (inert — no plymouth/gdm displays them;
-owned by `base-files` so they'd return on upgrade anyway).
+cadence), `85-fwupd` + `92-unattended-upgrades` MOTD notices (useful status).
 
 ---
 
@@ -294,8 +281,14 @@ sudo apt install -y --no-install-recommends \
   kde-config-screenlocker kactivitymanagerd kmenuedit \
   kde-spectacle kinfocenter
 
-# Terminal + clipboard + launcher
-sudo apt install -y konsole wl-clipboard
+# The two KDE apps: file manager + terminal (metapackage-free)
+sudo apt install -y --no-install-recommends dolphin konsole
+
+# Terminal + clipboard + launcher extras
+sudo apt install -y wl-clipboard
+
+# System monitor daemon (panel CPU/Memory applets)
+sudo apt install -y ksystemstats
 
 # Audio (pipewire + plasma-pa volume control)
 sudo apt install -y pipewire pipewire-pulse wireplumber
@@ -316,7 +309,7 @@ sudo apt install -y helium-bin
 # Security: firewall (firewalld + Plasma KCM) + firmware updates (fwupd)
 sudo apt install -y firewalld plasma-firewall fwupd
 
-# Dynamic tiling (KWin script installer) — no TUI tools needed
+# Dynamic tiling (KWin script installer)
 sudo apt install -y kpackagetool6
 ```
 
@@ -325,13 +318,8 @@ backends we don't have): `plasma-discover` (app store), `plasma-browser-integrat
 `plasma-vault` (needs cryfs), `plasma-thunderbolt`,
 `bluedevil` (no bluez), `plasma-disks` (needs udisks2), `khelpcenter`, `kgamma`,
 plus the rest of the KDE app suite (`kde-baseapps`: kate, gwenview, ark, elisa…).
-**Exceptions added 2026-08-06:** `dolphin` (file manager) + `konsole`
-(second terminal) — see step 5f.
-**Exceptions added 2026-08-07 (desktop pass):** `firewalld` + `plasma-firewall`
-(host firewall — see the Kröhnkite section below), `fwupd` (firmware updates),
-`kpackagetool6` (KWin script installer). `setup.sh` is plain bash. No `nala`,
-no `gum` (both purged 2026-08-11) — plain apt is the package manager.
-No kwin-x11 — **Wayland only**, no X session.
+`setup.sh` is plain bash — no `nala`, no `gum`; plain apt is the package
+manager. No kwin-x11 — **Wayland only**, no X session.
 
 > [!NOTE]
 > **What about X on disk?** `xserver-xorg-core` *is* installed — as an
@@ -350,9 +338,9 @@ No kwin-x11 — **Wayland only**, no X session.
 
 > [!NOTE]
 > **Indexer: installed with dolphin, disabled.** The `baloo6` daemon comes
-> back as a **hard dep of `dolphin`** (2026-08-06). It is **disabled**
+> back as a **hard dep of `dolphin`**. It is **disabled**
 > (`balooctl6 disable`) — Plasma runs with zero file-indexing in the
-> background, the same stance that removed tracker/localsearch.
+> background.
 
 **5d. What each package does** — see the purpose tables in
 [🧩 Software stack & package inventory](#-software-stack--package-inventory).
@@ -364,21 +352,19 @@ No kwin-x11 — **Wayland only**, no X session.
 sudo systemctl disable udisks2
 ```
 
-**5f. The two KDE apps (added 2026-08-06):**
+**5f. Post-install — zero background indexing:**
 
 ```bash
-sudo apt install -y --no-install-recommends dolphin konsole
 balooctl6 disable   # dolphin's hard dep baloo6 — keep zero background indexing
 ```
 
 `dolphin` = the file manager (`Meta+E`); `konsole` = the terminal
 (`Meta+Return`, second via `Ctrl+Alt+T`).
 
-**Konsole profile (2026-08-10):** `disubuntu.profile` + `disubuntu.colorscheme`
-live in `home/.local/share/konsole/` — JetBrains Mono 11pt, Breeze-Dark-tuned
+**Konsole profile:** `disubuntu.profile` + `disubuntu.colorscheme` live in
+`home/.local/share/konsole/` — JetBrains Mono 11pt, Breeze-Dark-tuned
 palette (bg `#202326`), **15% translucent + blur** so the wallpaper shows
-through (part of the look-and-feel pass). `konsolerc` pins
-`DefaultProfile=disubuntu.profile`.
+through. `konsolerc` pins `DefaultProfile=disubuntu.profile`.
 
 ---
 
@@ -393,16 +379,17 @@ sudo usermod -aG video,render $USER
 
 > [!IMPORTANT]
 > Apply the VRAM heap reuse fix (Step 2 in [🎮 NVIDIA](#-nvidia)) — the
-> process-name profile must match `kwin_wayland` (not `niri` anymore).
+> process-name profile must match `kwin_wayland`.
 
 ---
 
-### 7️⃣ Config files (all ours)
+### 7️⃣ Config files (all ours, tracked in this repo)
 
 | File | What it is |
 |---|---|
 | `~/.bash_aliases` | **in this repo** (`home/.bash_aliases`) — plain-apt aliases (`i/r/s/u/up`) |
 | `~/.config/kwinrc` | compositor settings (effects, animations, window rules) — **in repo** (`home/.config/kwinrc`) |
+| `~/.config/kwinrulesrc` | global `noborder` window rule (borderless) — **in repo** |
 | `~/.config/plasma-org.kde.plasma.desktop-appletsrc` | panel layout + widgets — **in repo** |
 | `~/.config/plasmashellrc` | shell settings — **in repo** |
 | `~/.config/kglobalshortcutsrc` | key bindings — **in repo** |
@@ -425,78 +412,14 @@ sudo usermod -aG video,render $USER
 - [ ] Run step 3 (purge snaps/cloud/leftovers) + step 3f (de-brand) + step 4 (interim cadence)
 - [ ] Add the helium repo (step 5b)
 - [ ] Install all packages from step 5c (plain apt — no nala, no gum)
-- [ ] NVIDIA VRAM fix JSON with `kwin_wayland` (see [🎮 NVIDIA](#-nvidia))
-- [ ] `sudo usermod -aG video,render $USER`
-- [ ] `sudo systemctl disable udisks2` (dormant-at-idle, step 5e)
-- [ ] `dolphin` + `konsole` + `balooctl6 disable` (step 5f)
+- [ ] `balooctl6 disable` + `sudo systemctl disable udisks2` (steps 5e/5f)
+- [ ] NVIDIA VRAM fix JSON with `kwin_wayland` (see [🎮 NVIDIA](#-nvidia)) + `sudo usermod -aG video,render $USER`
 - [ ] Install the Kröhnkite artifact from `vendor/krohnkite/` (`kpackagetool6 -t KWin/Script -i`) + enable
 - [ ] Borderless windows come from tracked config alone — `kwinrc` (`theme=Breeze`, `BorderlessMaximizedWindows=true`) + `kwinrulesrc` (global `noborder` rule); nothing to install
 - [ ] Enable + start `firewalld`, allow `ssh`; `systemctl enable --now fwupd` + `fwupdmgr refresh`
-- [ ] Install `ksystemstats` (panel CPU/Memory monitor daemon)
 - [ ] Copy configs from this repo (step 7 — incl. the `disubuntu` Konsole profile)
 - [ ] Reboot → SDDM → log in → Plasma (Wayland)
 - [ ] `pgrep -a kwin_wayland` + `pgrep -a plasmashell` → desktop up
-
----
-
-### 9️⃣ The niri → Plasma migration (done 2026-08-06)
-
-The desktop ran niri + a hand-written quickshell bar since setup. It was
-switched to KDE Plasma 6 (minimal core) on 2026-08-06. The exact migration
-(for reference/reproducibility):
-
-```bash
-# 9a. Install Plasma (full functional core, no apps — same command as 5c)
-sudo apt install -y --no-install-recommends \
-  plasma-desktop plasma-session-wayland kwin-wayland \
-  sddm sddm-theme-breeze kde-config-sddm \
-  systemsettings kscreen kio-extras kde-cli-tools \
-  powerdevil plasma-nm plasma-pa ksshaskpass \
-  polkit-kde-agent-1 breeze breeze-gtk-theme \
-  xdg-desktop-portal-kde kde-config-gtk-style \
-  kde-config-screenlocker kactivitymanagerd kmenuedit \
-  kde-spectacle kinfocenter
-
-# 9b. Purge the old stack
-sudo apt purge -y niri quickshell fuzzel greetd xwayland-satellite \
-  xdg-desktop-portal-gtk playerctl brightnessctl
-
-# 9c. Remove the old PPAs (niri/quickshell came from danklinux; hyprland PPA was unused)
-sudo rm -f /etc/apt/sources.list.d/avengemedia-ubuntu-danklinux-resolute.sources \
-          /etc/apt/sources.list.d/cppiber-ubuntu-hyprland-resolute.sources
-
-# 9d. Display manager: greetd → SDDM
-sudo systemctl enable sddm
-sudo systemctl disable udisks2     # Plasma hard-dep, keep dormant at idle
-
-# 9e. NVIDIA VRAM fix: process name niri → kwin_wayland
-sudo sed -i 's/"matches": "niri"/"matches": "kwin_wayland"/' \
-  /etc/nvidia/nvidia-application-profiles-rc.d/50-limit-free-buffer-pool-in-wayland-compositors.json
-
-# 9f. Audio restored (needed by plasma-pa)
-sudo apt install -y pipewire pipewire-pulse wireplumber
-
-# 9g. Wallpaper helpers removed (Plasma has its own wallpaper)
-rm -f ~/.local/bin/wp ~/.local/bin/wp-restore ~/.local/bin/awww ~/.local/bin/awww-daemon
-
-# 9h. Follow-up cleanup (2026-08-06): niri/quickshell build leftovers + unused terminal
-sudo apt-get remove --purge -y alacritty cargo rustc pkg-config \
-  liblz4-dev libwayland-dev wayland-protocols
-sudo apt-get autoremove --purge -y
-
-# 9i. The two KDE apps (2026-08-06): file manager + terminal
-sudo apt install -y --no-install-recommends dolphin konsole
-balooctl6 disable   # dolphin's hard dep baloo6 — keep zero background indexing
-
-# 9j. Refine cleanup (2026-08-06): ghostty out, konsole stays the terminal
-sudo apt-get remove --purge -y ghostty
-sudo apt-get autoremove --purge -y
-rm -rf ~/.config/ghostty ~/.cargo ~/.config/pandora ~/.config/xsettingsd \
-  ~/.config/niri ~/.config/quickshell ~/docs   # stale niri-era leftovers
-rm -f ~/core.* ~/.config/kded5rc
-
-sudo reboot
-```
 
 </details>
 
@@ -536,7 +459,7 @@ Find your modes/positions anytime with `kscreen-doctor -o`.
 | GPU | Device | Role |
 |---|---|---|
 | 🟦 **Intel UHD Graphics (iGPU)** | `/dev/dri/card0` | integrated, low power, no proprietary driver; the eDP panel is physically wired to it, so it *always* does the display output + scanout |
-| 🟩 **NVIDIA RTX 2060 Mobile (dGPU)** | `/dev/dri/card1` | 6 GB VRAM, more powerful; KWin renders on it (driver 595.84, `nvidia-smi` shows `kwin_wayland` with a context) while the iGPU scans out |
+| 🟩 **NVIDIA RTX 2060 Mobile (dGPU)** | `/dev/dri/card1` | 6 GB VRAM, more powerful; KWin renders on it (`nvidia-smi` shows `kwin_wayland` with a context) while the iGPU scans out |
 
 ### 🔀 How the graphics stack is wired (PRIME / hybrid)
 
@@ -551,15 +474,13 @@ Applications (Konsole, plasmashell, etc.)
 ```
 
 > [!NOTE]
-> **How modeset=1 gets here (2026-08-11, audited):** the `nvidia-driver-595`
-> package ships `/etc/modprobe.d/nvidia-graphics-drivers-kms.conf` with
+> **How modeset=1 gets here:** the `nvidia-driver-595` package ships
+> `/etc/modprobe.d/nvidia-graphics-drivers-kms.conf` with
 > `options nvidia_drm modeset=1` — so **modesetting IS active**
 > (`/sys/module/nvidia_drm/parameters/modeset` → `Y`) with **no**
-> `/etc/default/grub` edit needed. That file doesn't exist on this machine
-> (only the `grub.ucf-dist` template) and the kernel cmdline carries no
-> modeset flag — both fine: modprobe.d is the modern Ubuntu way. A grub
-> cmdline entry is only needed to push the flag into the initramfs early
-> (relevant if you later add NVIDIA console output); it's an optional extra:
+> `/etc/default/grub` edit needed (that file doesn't even exist on this
+> machine). A grub cmdline entry is only needed to push the flag into the
+> initramfs early (NVIDIA console output before boot) — an optional extra:
 >
 > ```bash
 > sudoedit /etc/default/grub        # GRUB_CMDLINE_LINUX_DEFAULT += nvidia-drm.modeset=1
@@ -583,11 +504,17 @@ Applications (Konsole, plasmashell, etc.)
 What runs, what each piece does, and every installed package by category.
 
 > [!NOTE]
-> 📊 **Snapshot 2026-08-11:** **1,468 packages** installed,
-> **89 manually installed**, **29 enabled services** (+1: firewalld; fwupd is
-> socket-activated with an enabled `fwupd-refresh.timer`; `motd-news.timer`
-> disabled 2026-08-11), plus the Kröhnkite KWin script — measured *after* the
-> 2026-08-11 audit pass (nala/gum/MDI-font purged, de-branding applied).
+> 📊 **Snapshot:** **1,468 packages** installed, **89 manually installed**,
+> **29 enabled services** (+ the Kröhnkite KWin script; fwupd is
+> socket-activated with an enabled `fwupd-refresh.timer`). Regenerate the
+> lists anytime:
+>
+> ```bash
+> apt-mark showmanual | sort > /tmp/manual-packages-current.txt
+> dpkg-query -W -f='${Package} ${Version}\n' | sort > /tmp/all-installed.txt
+> systemctl list-unit-files --type=service --state=enabled --no-pager | \
+>   grep enabled | awk '{print $1}' | sort > /tmp/enabled-services.txt
+> ```
 
 ### 🗺️ The whole setup, one diagram
 
@@ -629,31 +556,29 @@ What runs, what each piece does, and every installed package by category.
 | **Status bar / tray** | plasmashell panels | native network (plasma-nm), audio (plasma-pa), power (powerdevil) applets |
 | **Browser** | **Helium** (`helium-bin`, .deb repo) | Chromium fork with Chrome-extension support; real .deb, no snap |
 | **Terminal** | **Konsole** | KDE Plasma default, Wayland native — `disubuntu` profile (JetBrains Mono 11, 15% translucent, blur) |
-| **System monitor** | **ksystemstats** + native System Monitor applets | CPU + Memory widgets in the panel (added 2026-08-10, no third-party widgets) |
-| **File manager** | **Dolphin** | added 2026-08-06 (`Meta+E`); uses the dormant `udisks2` for mounting |
+| **System monitor** | **ksystemstats** + native System Monitor applets | CPU + Memory widgets in the panel — no third-party widgets |
+| **File manager** | **Dolphin** | `Meta+E`; uses the dormant `udisks2` for mounting |
 | **Clipboard** | Plasma clipboard + **wl-clipboard** | both installed; plasma's clipboard has history |
 | **Backlight keys** | **powerdevil** | Plasma's power management handles brightness natively |
-| **Audio** | **pipewire + wireplumber + plasma-pa** | restored 2026-08-06 with the migration; volume keys in KWin |
+| **Audio** | **pipewire + wireplumber + plasma-pa** | volume keys in KWin |
 | **Login** | **SDDM** | Plasma's native display manager; breeze theme |
-| **Firewall** | **firewalld** + **plasma-firewall** KCM | host firewall, `public` zone on WiFi, `ssh`+`dhcpv6-client` allowed; configured in System Settings → Firewall (added 2026-08-07) |
-| **Firmware updates** | **fwupd** (`fwupdmgr`) | LVFS firmware metadata + updates (added 2026-08-07) |
+| **Firewall** | **firewalld** + **plasma-firewall** KCM | host firewall, `public` zone on WiFi, `ssh`+`dhcpv6-client` allowed; configured in System Settings → Firewall |
+| **Firmware updates** | **fwupd** (`fwupdmgr`) | LVFS firmware metadata + updates |
 | **Desktop GPU** | **nvidia-driver-595** | see [🎮 NVIDIA](#-nvidia) |
 
 ### 🚫 What is intentionally NOT here
 
 | Not installed | Why we skip it |
 |---|---|
-| Rest of the KDE app suite (`kde-baseapps`: kate, gwenview, ark, elisa, …) | Plasma is the desktop, not an app bundle — konsole/helium cover the needs |
+| Rest of the KDE app suite (`kde-baseapps`: kate, gwenview, ark, elisa, …) | Plasma is the desktop, not an app bundle — dolphin/konsole/helium cover the needs |
 | `plasma-discover` | GUI app store — we use plain `apt` |
-| `nala` · `gum` | third-party helpers — purged 2026-08-11; plain apt covers everything |
-| `baloo` indexer daemon | **installed as a dolphin hard-dep, but disabled** (`balooctl6 disable`) — zero background indexing, same stance that removed tracker/localsearch |
+| `nala` · `gum` | third-party helpers — plain apt covers everything |
+| `baloo` indexer daemon | **installed as a dolphin hard-dep, but disabled** (`balooctl6 disable`) — zero background indexing |
 | `kwin-x11` | **not installed** — the X11 compositor is gone; KWin runs Wayland only |
 | `xserver-xorg-core` | present **as the NVIDIA driver's hard-dep** (`xserver-xorg-video-nvidia-595`); never runs, no X session |
 | `Xwayland` | runs **rootless** (KWin default) — only KDE's tray bridges (`xembedsniproxy`, `gmenudbusmenupr`) use it; all user apps are Wayland-native |
 | Full X session / X11 apps | pure Wayland provides everything we need |
-| Snaps, cloud-init, apport, GNOME leftovers | the base rules from step 3 — untouched by the migration |
-| `waybar`, `mako`, `swaybg`, `swaylock`, `grim`, `slurp`, `fuzzel` | Plasma provides equivalents (panel, notifications, wallpaper, lock, screenshots, krunner) |
-| Wallpaper helpers (`awww`, `pandora`) | Plasma has its own wallpaper engine |
+| Snaps, cloud-init, apport, GNOME leftovers | the base rules from step 3 |
 
 ### 📦 Package inventory (the part that matters)
 
@@ -668,7 +593,7 @@ What runs, what each piece does, and every installed package by category.
 | `kscreen` | display configuration |
 | `powerdevil` | power profiles + backlight control |
 | `plasma-nm` | NetworkManager system-tray applet |
-| `plasma-pa` | audio applet (needs pipewire — restored) |
+| `plasma-pa` | audio applet (needs pipewire) |
 | `kde-spectacle` | screenshots |
 | `kio-extras` · `kde-cli-tools` | file-dialog + command-line plumbing |
 | `ksshaskpass` · `polkit-kde-agent-1` | SSH/polkit prompts |
@@ -683,33 +608,15 @@ What runs, what each piece does, and every installed package by category.
 |---|---|
 | `konsole` | terminal emulator (default) — `disubuntu` translucent profile |
 | `ksystemstats` | system-stats daemon backing the panel's CPU/Memory monitor applets |
-| `dolphin` | file manager (`Meta+E`) — added 2026-08-06 |
+| `dolphin` | file manager (`Meta+E`) |
 | `helium-bin` | the browser (real .deb) |
 | `wl-clipboard` | `wl-copy` / `wl-paste` |
 | `gh` · `git` | GitHub CLI + version control |
 | `qml6-module-qtquick-layouts` | Qt6 QML module — **required by the Plasma stack** (removing it pulls out plasma-desktop; kept) |
 | `software-properties-common` | `add-apt-repository` (used for the helium repo) |
-| `pipewire` + `pipewire-pulse` + `wireplumber` | audio (restored 2026-08-06) |
+| `pipewire` + `pipewire-pulse` + `wireplumber` | audio |
 | `nvidia-driver-595` + stack | dGPU driver (see [🎮 NVIDIA](#-nvidia)) |
 | fonts: inter, jetbrains-mono, noto-core, noto-color-emoji | UI + terminal + emoji |
-
-**Removed 2026-08-11 (audit pass):** `nala` (third-party apt frontend) ·
-`gum` (third-party TUI tool — leftover from setup.sh's gum era) ·
-`fonts-materialdesignicons-webfont` (zero consumers after the quickshell
-migration) + nala's 13 Python deps. **Removed with the migration (2026-08-06):** `niri` · `quickshell` ·
-`fuzzel` · `greetd` · `xwayland-satellite` · `xdg-desktop-portal-gtk` ·
-`playerctl` · `brightnessctl` · `awww`/`pandora` + `wp` scripts · the
-`danklinux` and `hyprland` PPAs. Configs preserved in git history (`pre-plasma`
-tag).
-
-**Purged in the 2026-08-06 cleanup (after the migration):** `alacritty`
-(unused second terminal) · the Rust build toolchain left over from building
-niri/quickshell — `cargo` · `rustc` · `pkg-config` (re-pulled as an
-`nvidia-settings` dep) · `liblz4-dev` · `libwayland-dev` · `wayland-protocols`.
-
-**Purged in the 2026-08-11 audit pass:** `nala` · `gum` ·
-`fonts-materialdesignicons-webfont` + nala's 13 Python deps — no third-party
-helpers remain; everything is stock apt + the helium repo (see step 5b).
 
 ### 🔢 Process count at idle
 
@@ -729,9 +636,8 @@ helpers remain; everything is stock apt + the helium repo (see step 5b).
 That's the honest cost of a full desktop: **~31 session processes at idle**
 (including Plasma's own helper daemons — kwalletd6, ksecretd, gnome-keyring,
 at-spi a11y, dconf, the two Xwayland tray bridges, plus KWin's rootless
-Xwayland), vs ~2 with the hand-rolled niri stack — in exchange for the
-complete, supported Plasma feature set (settings, widgets, lock screen, power,
-network, audio).
+Xwayland) — in exchange for the complete, supported Plasma feature set
+(settings, widgets, lock screen, power, network, audio).
 
 ---
 
@@ -758,12 +664,11 @@ manager, and the Wayland session.
 | compositor config | `~/.config/kwinrc` |
 | shell config | `~/.config/plasmashellrc` + `plasma-org.kde.plasma.desktop-appletsrc` |
 
-### 🤔 Why SDDM instead of greetd/GDM?
+### 🤔 Why SDDM instead of GDM?
 
 | Option | Why not / why yes |
 |---|---|
 | **GDM** | GNOME's DM — would pull GNOME dependencies |
-| **greetd** | text-only greeter; no graphical login, no Plasma integration (was the pre-migration choice) |
 | **SDDM** ✅ | Plasma's native DM — graphical login, breeze theme, `kde-config-sddm` settings KCM, screen-locker integration |
 
 ### ⚙️ Useful commands
@@ -799,8 +704,8 @@ applies via System Settings; key files:
 One floating top panel (46px), configured in System Settings → Desktop:
 
 - Left: **pager → global menu** · right (pushed by a spacer): **system tray → CPU → memory → clock**
-  (System Monitor CPU/Memory applets added 2026-08-10, backed by the
-  `ksystemstats` daemon — native, no third-party widgets)
+  (System Monitor CPU/Memory applets, backed by the `ksystemstats` daemon —
+  native, no third-party widgets)
 - No app launcher and no task manager by design: `Meta` opens KRunner,
   `Meta+W` the Overview, `Meta+1…6` switch desktops, `Alt+Tab` switches
   windows, and Kröhnkite tiles everything anyway
@@ -818,19 +723,19 @@ Everything is movable: right-click a panel → Edit Mode. The layout lands in
 | Screen edges | corners → overview / desktop grid |
 | Tiling | Kröhnkite owns tile drags (`BorderSnapZone=0` — KWin edge-snap off); native tiling layout system kept as fallback (`Meta+T`) |
 
-### 🖱️ Focus, placement & animations (2026-08-10 pass)
+### 🖱️ Focus, placement & animations
 
 | Setting (`kwinrc`) | Value | Effect |
 |---|---|---|
-| `[Windows] FocusPolicy` | `FocusFollowsMouse` | hover activates a window — no click needed (the "tiling WM feel" from the video pass) |
+| `[Windows] FocusPolicy` | `FocusFollowsMouse` | hover activates a window — no click needed (the "tiling WM feel") |
 | `[Windows] ActiveMouseScreen` | `true` | the screen under the pointer is the active one (pairs with `SeparateScreenFocus=true`) |
 | `[Windows] Placement` | `Centered` | every new *floating* window opens centered — dialogs, polkit prompt, KRunner |
 | `[Windows] BorderSnapZone` | `0` | KWin edge-snap off — drags belong to Kröhnkite's tile-swap |
 | `[TabBox] MultiScreenMode` | `1` | **independent per-screen desktops** — switching on one monitor doesn't touch the other |
-| `[KDE] AnimationDurationFactor` | `0.5` | snappy 2×-speed animations (mechanical, not sluggish) |
+| `[KDE] AnimationDurationFactor` | `0.5` | snappy 2×-speed animations |
 | `[Plugins]` minimize/close | magic-lamp + fall-apart | smooth suck-into-panel minimize; subtle shatter on close — `squashEnabled=false` (the one that glitches under Kröhnkite) |
 
-### 🪟 Kröhnkite — dynamic tiling (2026-08-07)
+### 🪟 Kröhnkite — dynamic tiling
 
 **The only third-party component in this setup.** Dynamic window tiling for
 KWin — windows auto-arrange instead of overlapping; every new window splits
@@ -849,7 +754,7 @@ Per-screen layout (stored in `screenDefaultLayout`): **binary tree**
 | Option (kwinrc) | Value | Effect |
 |---|---|---|
 | `screenGap*` | `top 14`, others `10` | gaps around tiles (10px; top gap taller so tiles sit clear of the floating top panel) |
-| `directionalKeyFocus` | `true` | `Meta+Arrow` moves focus between tiles (hypr→KDE feel) |
+| `directionalKeyFocus` | `true` | `Meta+Arrow` moves focus between tiles |
 | `keepTilingOnDrag` | `true` (default) | dragging a tiled window swaps tiles instead of floating it |
 | `newWindowPosition` | `0` (default) | new windows split the focused tile |
 | `floatingClass` | `plasmashell,,,org.kde.krunner,org.kde.plasmashell,org.kde.polkit-kde-authentication-agent-1` | panels, KRunner and the polkit prompt never get tiled |
@@ -924,12 +829,12 @@ Autostart apps: System Settings → Autostart (adds entries to `~/.config/autost
 
 | Keys | Action |
 |---|---|
-| `Meta` | KRunner launcher (bare key, 2026-08-10 — the "Rofi replacement" from the video pass) |
+| `Meta` | KRunner launcher |
 | `Meta+Space` (or `Meta+R` / `Alt+F2`) | KRunner launcher |
 | `Meta+Return` (or `Ctrl+Alt+T`) | Konsole (terminal) |
-| `Meta+S` | Spectacle interactive region screenshot (hypr→KDE) |
+| `Meta+S` | Spectacle interactive region screenshot |
 | `Print` / `Shift+Print` / `Alt+Print` | Spectacle defaults: full screen / region / window |
-| `Meta+E` | dolphin file manager (added 2026-08-06) |
+| `Meta+E` | dolphin file manager |
 | `Meta+W` | Overview |
 | `Ctrl+Esc` | system activity |
 
@@ -946,14 +851,14 @@ Autostart apps: System Settings → Autostart (adds entries to `~/.config/autost
 | `Alt+F3` | window operations menu (move to desktop, more) |
 | `Meta+D` | peek at desktop |
 | `Meta+G` | grid view |
-| `Meta+1` … `Meta+6` | switch to desktop 1–6 (active since 2026-08-10; `Meta+F#`/`Ctrl+F#` kept) |
+| `Meta+1` … `Meta+6` | switch to desktop 1–6 |
 | `Meta+Shift+1` … `Meta+Shift+0` | move window to desktop 1–10 |
 | `Meta+W` | overview |
 
 > [!TIP]
-> Ported from the old Hyprland setup: `Meta+N` is desktop **switching**, not
-> task-manager entry activation — the default Plasma `Meta+1…9` task-manager
-> binds are unbound (re-enable in System Settings → Shortcuts if wanted).
+> `Meta+N` is desktop **switching**, not task-manager entry activation — the
+> default Plasma `Meta+1…9` task-manager binds are unbound (re-enable in
+> System Settings → Shortcuts if wanted).
 
 ### 🪟 Kröhnkite (dynamic tiling)
 
@@ -970,7 +875,7 @@ Autostart apps: System Settings → Autostart (adds entries to `~/.config/autost
 | `Meta+Shift+arrows` | move window left / right / up / down |
 | `Meta+Ctrl+Left` / `Right` / `Up` / `Down` | shrink width / grow width / shrink height / grow height |
 | `Meta+I` | increase ratio |
-| `Meta+\,` / `Meta+\` | focus previous window / next layout (bound 2026-08-10) |
+| `Meta+\,` / `Meta+\` | focus previous window / next layout |
 | `Meta+Shift+Space` / `Meta+Shift+F` | toggle float (window) / float all |
 | `Meta+Shift+R` | rotate part (rotate is unbound — `Meta+R` is KRunner) |
 | `Meta+M` | monocle layout |
@@ -978,7 +883,7 @@ Autostart apps: System Settings → Autostart (adds entries to `~/.config/autost
 
 > [!NOTE]
 > `Meta+Space` was freed from Kröhnkite's toggle-float (now
-> `Meta+Shift+Space`) so KRunner could take it — the Hyprland-launcher feel.
+> `Meta+Shift+Space`) so KRunner could take it.
 
 All bindings live in `kglobalshortcutsrc` under `[kwin]` (`Krohnkite*`,
 tracked in this repo) and are configurable in System Settings → Shortcuts.
@@ -1035,7 +940,7 @@ lsmod | grep nvidia # nvidia, nvidia_drm, nvidia_modeset loaded
 ### 1️⃣ Step 1 — kernel command line: `nvidia-drm.modeset=1` *(already active via modprobe.d)*
 
 > [!NOTE]
-> **Status 2026-08-11:** already on. The `nvidia-driver-595` package ships
+> **Status: already on.** The `nvidia-driver-595` package ships
 > `/etc/modprobe.d/nvidia-graphics-drivers-kms.conf` (`options nvidia_drm
 > modeset=1`) — `/sys/module/nvidia_drm/parameters/modeset` → `Y`. No grub
 > edit was ever needed. The classic grub-cmdline route below is only the
@@ -1060,7 +965,7 @@ cat /sys/module/nvidia_drm/parameters/modeset   # should print Y
 > The NVIDIA driver has a quirk: compositors that recycle buffers cause the
 > driver to hoard VRAM (**1 GiB+** instead of ~100 MiB). The fix is a
 > per-process application profile. **The process name must match the
-> compositor — `kwin_wayland`** since the 2026-08-06 migration.
+> compositor — `kwin_wayland`.**
 
 ```bash
 sudo mkdir -p /etc/nvidia/nvidia-application-profiles-rc.d
@@ -1123,85 +1028,6 @@ This works **without any X11 config** — KWin handles multi-GPU natively.
 
 ---
 
-## 🚧 Work In Progress
-
-> [!NOTE]
-> **What "done" means here:** the desktop is fully usable today — Plasma,
-> SDDM, NVIDIA, screenshots, audio. The open items below are refinements and
-> decisions, not blockers.
-
-### ✅ Done
-
-- [x] niri + quickshell → **KDE Plasma 6** migration (full functional core, Wayland only).
-- [x] SDDM login manager (breeze) replaces greetd.
-- [x] NVIDIA driver + VRAM heap fix re-targeted at `kwin_wayland`.
-- [x] Audio restored (pipewire + wireplumber) for plasma-pa.
-- [x] Old stack purged: niri, quickshell, fuzzel, greetd, xwayland-satellite, wallpaper helpers, 2 PPAs.
-- [x] 2026-08-06 cleanup: alacritty + Rust build toolchain purged (no reverse-deps).
-- [x] `dolphin` + `konsole` installed (the two KDE apps); `baloo6` (dolphin's hard dep) disabled.
-- [x] `udisks2` dormant-at-idle (D-Bus on-demand, no boot daemon).
-- [x] No indexer daemons running: `baloo` disabled.
-- [x] Configs backed up in this repo (`home/` mirrors `~`).
-- [x] **2026-08-07 desktop pass:** firewalld + plasma-firewall KCM (host firewall, `ssh`+`dhcpv6-client` on `public` zone), fwupd + `fwupd-refresh.timer`, and **Kröhnkite 0.9.9.2** dynamic tiling (installed, enabled, live-tested; artifact vendored in `vendor/krohnkite/`).
-- [x] **Theme decision:** Breeze Dark is the default (`kdeglobals` tracked).
-- [x] **setup.sh** exists as a plain-bash installer (no gum — zero third-party TUI deps; `bash setup.sh --check` to dry-run) — full flow lands in the dev pass.
-- [x] **2026-08-10 look & feel + tiling pass:** focus-follows-mouse, centered floats, per-screen desktops, Kröhnkite↔KWin binding cleanup (10 unbinds + `Meta+\,`/`Meta+\` bound), bare `Meta`→KRunner + `Meta+1–6` desktops, magic-lamp minimize + fall-apart, translucent `disubuntu` Konsole profile, CPU/Memory panel monitor applets (+`ksystemstats`), Qt/GTK theme consistency.
-- [x] **2026-08-10 native-decor pass:** third-party Aurorae theme (Active Accent Frame) removed — borderless everywhere via stock Breeze + a native KWin rule (`kwinrulesrc`, global `noborder` Force) + `BorderlessMaximizedWindows`; `gum` dropped from setup.sh. **Kröhnkite stays** as the single intentional third-party component (KWin 6.6 has no native dynamic tiling).
-- [x] **2026-08-11 audit + de-brand pass:** `nala` + `gum` + `fonts-materialdesignicons-webfont` purged (third-party helpers gone — plain apt only), 13 nala Python deps autoremoved, orphaned SDDM `ubuntu-theme` removed, Ubuntu MOTD branding + Canonical `motd-news` service disabled (`ENABLED=0` + timer off), stale niri-era `~/.config/pulse` deleted, NVIDIA docs audited to the true story (modeset=1 active via `/etc/modprobe.d/nvidia-graphics-drivers-kms.conf` — no grub edit ever needed; KWin renders on the dGPU, Intel scans out), snapshot re-measured (1,468 packages / 89 manual / 29 services), `setup.sh` gained the de-brand step, stray `libkwin6_….deb` dropped from the repo.
-
-### 🚧 Open
-
-- [x] **Panel/layout finalization** — one floating top panel (46px), left = pager + global menu, right = tray + CPU + memory + clock; the layout is backed up here.
-- [x] Wallpaper — Plasma's own engine, solid color `#49A6EA` (73,166,234) on both screens; the eDP desktop was black before because its `org.kde.color` had no `Color` set (fixed 2026-08-10).
-- [ ] Bluetooth: not installed yet (bluez optional).
-- [ ] Autostart list: confirm what starts with the session.
-- [ ] **Dev tools: none for now** — Docker / Node / Rust / Go land "when needed" in the dev pass (setup.sh will grow the steps).
-- [ ] **Timeshift** snapshots: decided *maybe later* — the repo-backed configs + interim cadence cover the reset story for now.
-- [ ] **Secure Boot + TPM-FDE (LUKS2):** future goal, deferred to the **next clean install** (not applied to this machine).
-- [ ] **Machine → repo backup routine** — the 2026-08-10 writeback incident (dying kglobalacceld clobbering `kglobalshortcutsrc`) showed the repo copy can go stale after a kwin restart; make `bash setup.sh --backup` a habit after binding edits (or automate it in setup.sh).
-
-### 📆 Release cadence
-
-> [!TIP]
-> **Interim releases, every 6 months:** `sudo do-release-upgrade` to the next
-> Ubuntu interim release — Fedora-style cadence, apt-based, no dnf/rpm.
-> The switch is `Prompt=normal` in `/etc/update-manager/release-upgrades`.
-
----
-
-## 📦 Packages & Details
-
-<details>
-<summary><strong>📦 Packages & Details — every component, at a glance</strong></summary>
-
-|  |  |
-| :-- | --- |
-| 🖥️ Distribution | [Ubuntu](https://ubuntu.com/) 26.04 LTS today, 26.10 interim cadence from Oct 2026 — Server minimal |
-| 📦 Package manager | plain `apt` |
-| 🪟 Desktop | [KDE Plasma 6](https://kde.org/plasma-desktop/) — full core, Wayland only |
-| 🪟 Compositor | [KWin](https://invent.kde.org/plasma/kwin) (`kwin_wayland`, Plasma 6.6.6) |
-| 🗂️ Tiling | [Kröhnkite](https://codeberg.org/anametologin/Krohnkite) 0.9.9.2 (pinned, vendored) + native KWin tiling fallback |
-| 🪟 Window decoration | stock **Breeze** — global borderless via native KWin rule (`kwinrulesrc`) + `BorderlessMaximizedWindows` |
-| 💻 Terminal Emulator | [Konsole](https://konsole.kde.org/) (KDE Plasma default, Wayland-native) |
-| 🚀 Applications launcher | [KRunner](https://kde.org/plasma-desktop/) (Meta) — Plasma's built-in |
-| 🧱 Shell / Bar | [plasmashell](https://kde.org/plasma-desktop/) — panels + widgets |
-| 🌍 Browser | [Helium](https://github.com/imputnet/helium-linux) (Chromium fork, real .deb) |
-| 🔑 Login Manager | [SDDM](https://github.com/sddm/sddm) (breeze theme) |
-| 🔔 Notifications | Plasma notifications (native) |
-| 📸 Screenshots | [KDE Spectacle](https://apps.kde.org/spectacle/) |
-| 📋 Clipboard Manager | Plasma clipboard (history) + wl-clipboard |
-| 🖼️ Wallpaper | Plasma's wallpaper engine (native) |
-| 🔐 Authentication agent | polkit-kde-agent-1 |
-| 🌐 Network management | [NetworkManager](https://networkmanager.dev/) + plasma-nm applet |
-| 📡 Bluetooth | not installed — optional (`bluez bluez-utils`) |
-| 🔊 Audio | pipewire + pipewire-pulse + wireplumber (restored 2026-08-06) + plasma-pa |
-| 🔋 Power management | [powerdevil](https://invent.kde.org/plasma/powerdevil) (profiles + backlight) |
-| 🎮 Graphics | Intel UHD (iGPU, drives panel) + NVIDIA RTX 2060 Mobile (dGPU, renders via nvidia-driver-595) |
-| 🖥️ Display stack | Wayland only (no X session, no kwin-x11); rootless Xwayland for legacy apps; `xserver-xorg-core` present as the NVIDIA driver's hard-dep, never runs |
-</details>
-
----
-
 ## 🛠️ Troubleshooting & Known Issues
 
 ### 🥇 Golden rules
@@ -1226,7 +1052,7 @@ This works **without any X11 config** — KWin handles multi-GPU natively.
 | Screenshots save nowhere | `mkdir -p ~/Pictures/Screenshots`; check Spectacle settings. |
 | Network applet missing | plasma-nm installed? `systemctl status NetworkManager`. |
 | Apps look wrong / huge | Missing fonts → `fc-list \| grep Inter`; install `fonts-inter`. |
-| Bluetooth audio glitches | `systemctl --user status pipewire wireplumber`; reboot if needed (bluez not installed — see WIP). |
+| Bluetooth audio glitches | `systemctl --user status pipewire wireplumber`; reboot if needed (bluez not installed). |
 | Suspend/resume broken | Known hybrid-GPU quirk. `journalctl -b -1 \| grep -i nvidia`; reboot usually clears it. |
 | Global shortcuts dead / `kglobalacceld` exits instantly | **Normal on Wayland, don't chase it.** `kglobalacceld` is a deliberate no-op when `XDG_SESSION_TYPE=wayland` (exits 0 silently, by design — see `src/main.cpp` upstream); **kwin_wayland itself provides `org.kde.kglobalaccel`**. Verify with `pgrep -a kwin_wayland` + `qdbus6 org.kde.kglobalaccel /kglobalaccel allMainComponents`, not the daemon. |
 
@@ -1241,7 +1067,7 @@ This works **without any X11 config** — KWin handles multi-GPU natively.
 | 🪟 **"Minimize all other windows"** (Plasma 6.6) conflicts with Kröhnkite | left **unbound** by design; don't bind it (breaks focus/tiling) |
 | 🪟 **Squash minimize animation** glitches under Kröhnkite | use *None* or *Magic Lamp* as the minimize effect if windows animate oddly |
 | 🔥 **Meta+D / Meta+T / Meta+L** don't tile (KDE won the conflict) | intentional — KDE's show-desktop / edit-tiles / lock-session keep those keys; Kröhnkite's versions stay unbound |
-| ⚠️ **`kglobalacceld` can rewrite `kglobalshortcutsrc` while dying** (2026-08-10) | an X11-connected kglobalacceld that loses Xwayland during a `kwin_wayland --replace` flushes its in-memory state on exit — it can clobber recent binding changes. After any binding edit + kwin restart, re-`cp` the file into the repo |
+| ⚠️ **`kglobalacceld` can rewrite `kglobalshortcutsrc` while dying** | an X11-connected kglobalacceld that loses Xwayland during a `kwin_wayland --replace` flushes its in-memory state on exit — it can clobber recent binding changes. After any binding edit + kwin restart, re-`cp` the file into the repo |
 
 ### 🔬 Checking the whole stack at once
 
@@ -1269,7 +1095,7 @@ kscreen-doctor -o
 | Situation | The move |
 |---|---|
 | **Desktop frozen** | `Ctrl+Alt+F2` → log in on tty2 → `loginctl terminate-session $SESSION` or reboot |
-| **Panels broken/disappeared** | `plasmashell --replace` (or from tty2: `DISPLAY=… wayland` — simpler: re-login) |
+| **Panels broken/disappeared** | `plasmashell --replace` (simpler: re-login) |
 | **KWin crash loop** | on tty2: `journalctl --user -b -e`; disable the newest effect (kwinrc), re-login |
 | **SDDM unresponsive** | `sudo systemctl restart sddm` from tty2 |
 
@@ -1283,43 +1109,6 @@ KDE userbase (<https://userbase.kde.org/>) and the Plasma docs
 ## 🧹 Maintenance & Service Inventory
 
 What's running, what can be trimmed, and the routine care this system needs.
-Last audited: 2026-08-06 (niri→Plasma migration + base audit).
-
-### 🔎 Base audit (done 2026-08-06) — "start clean" verification
-
-Re-verified the whole base against the steps-3/5f purge lists and hunted for
-undocumented leftovers before the migration. Result: the base was clean — no
-snaps, no cloud-init, no failed units, no autoremove candidates. The audit
-removed 31 packages + 8 dead entries, freed ~1.2 GB, and pinned snapd out of
-existence (`Pin-Priority: -10`; `apt-cache policy snapd` → candidate `(none)`).
-
-### 🔁 The migration audit (2026-08-06) — what the swap changed
-
-| Item | What it was | Status |
-|---|---|---|
-| `niri` + `quickshell` + `fuzzel` + `greetd` + `xwayland-satellite` | the old compositor/shell/login stack | ✅ **purged** |
-| `xdg-desktop-portal-gtk` | GNOME portal backend — Plasma uses the kde portal | ✅ **purged** |
-| `playerctl` · `brightnessctl` | niri-era media/brightness tools — KWin/powerdevil do this natively | ✅ **purged** |
-| `awww`/`pandora` + `wp` scripts | wallpaper helpers — Plasma has its own wallpaper | ✅ **removed** |
-| `danklinux` + `hyprland` PPAs | niri/quickshell source + an unused hyprland PPA | ✅ **removed** |
-| `udisks2` (re-pulled by plasma-workspace) | storage daemon — Plasma hard-dep | ✅ **kept dormant** (D-Bus on-demand, not enabled at boot) |
-| `baloo` indexer | Plasma file search daemon | ✅ **re-pulled as a dolphin hard-dep 2026-08-06, then disabled** (`balooctl6 disable`) — zero background indexing |
-| NVIDIA VRAM profile | `niri` → `kwin_wayland` process name | ✅ **re-targeted** |
-| audio | purged 2026-08-04 | ✅ **restored** (pipewire + wireplumber) |
-
-> [!NOTE]
-> **Net effect of the migration:** niri-era stack gone, Plasma core in.
-> Packages 967 → **1,445** → **1,430** (2026-08-06 cleanup: build toolchain +
-> alacritty) → **1,444** (+dolphin/konsole) → **1,440** (ghostty removed + apt
-> autoremove) → **1,475** (2026-08-07 desktop pass: firewalld/plasma-firewall,
-> fwupd, kpackagetool6 + their deps) → **1,468** (2026-08-11 audit pass:
-> nala/gum/MDI font + nala's 13 Python deps removed), manual 70 → **92** → **85**
-> → **87** → **86** → **91** → **89**, enabled services
-> 27 → **28** (only `sddm` added; `udisks2` disabled
-> again) → **29** (+firewalld; fwupd socket-activated + timer; motd-news.timer
-> disabled — not a service count change),
-> 0 `rc` entries, no snaps, no Canonical junk — the base rules
-> survived intact.
 
 ### ⚙️ Service inventory (enabled, system — 29 currently)
 
@@ -1341,10 +1130,8 @@ existence (`Pin-Priority: -10`; `apt-cache policy snapd` → candidate `(none)`)
 `pollinate` · `avahi-daemon` · `networkd-dispatcher` · `unminimize` ·
 `nautilus`/`gvfs*` · `xdg-desktop-portal-gnome` · `evolution-data-server` ·
 `localsearch` · `multipath-tools` · `open-iscsi` · `ModemManager` ·
-`lxd-installer` · `bluez` (never installed) · `niri` · `quickshell` · `fuzzel` ·
-`greetd` · `xwayland-satellite` · `alacritty` · `cargo` ·
-`rustc` · `libwayland-dev` · `wayland-protocols` (2026-08-06 cleanup) ·
-`nala` · `gum` · `fonts-materialdesignicons-webfont` (2026-08-11 audit pass)
+`lxd-installer` · `bluez` (never installed) ·
+`nala` · `gum` · `fonts-materialdesignicons-webfont`
 
 **⛔ Installed but inert:** `baloo6` (dolphin hard-dep, disabled via
 `balooctl6`) — the only daemon on disk that is intentionally off.
@@ -1357,6 +1144,7 @@ existence (`Pin-Priority: -10`; `apt-cache policy snapd` → candidate `(none)`)
 | `~/.profile` | stock; sources `.bashrc`, adds `~/bin` + `~/.local/bin` to PATH |
 | `~/.bash_aliases` | **in repo** (`home/.bash_aliases`) — plain-apt aliases (`i/r/s/u/up`) |
 | `~/.config/kwinrc` | compositor: effects, window rules, screen edges — **in repo** |
+| `~/.config/kwinrulesrc` | global `noborder` window rule — **in repo** |
 | `~/.config/plasma-org.kde.plasma.desktop-appletsrc` | panel layout + widgets — **in repo** |
 | `~/.config/plasmashellrc` | shell settings — **in repo** |
 | `~/.config/kglobalshortcutsrc` | key bindings — **in repo** |
@@ -1394,69 +1182,7 @@ pgrep -a kwin_wayland                 # compositor health
 > kwin_wayland process confirms the desktop survived the upgrade. None of
 > these take more than a minute.
 
-### ↩️ Rollback notes
-
-- The pre-Plasma state is preserved in git: tag **`pre-plasma`** (niri +
-  quickshell configs) — `git checkout pre-plasma` restores them.
-- To go back to niri: `sudo apt install niri quickshell` + re-add the
-  danklinux PPA (removed in step 9c).
-- Service disables are reversible: `sudo systemctl enable --now <svc>`.
-
----
-
-## 📜 Provisioning & Baseline
-
-This machine's state is reproducible from the commands in this document.
-
-### 📦 The baseline (fresh Ubuntu Server Minimal)
-
-The baseline is defined by the `ubuntu-server-minimal` metapackage — **27
-direct dependencies** plus its Recommends (`hwctl` · `kdump-tools` ·
-`needrestart` · `unattended-upgrades`), plus the installer's base layer
-(kernel, grub-efi-amd64 + shim-signed, locales, nano).
-
-**Step 3 of [📥 Installation](#-installation) purges** the Canonical extras
-and server leftovers: `cloud-init`, `snapd`, `apport`, `unminimize`,
-`open-iscsi`, `multipath-tools` + `kdump-tools`, plus the installer-layer
-leftovers `modemmanager`, `avahi-daemon`, `udisks2`, `networkd-dispatcher` —
-leaving only the essentials.
-
-**Default apt sources:**
-
-```
-http://ly.archive.ubuntu.com/ubuntu/    main restricted universe multiverse
-https://security.ubuntu.com/ubuntu/     main restricted universe multiverse
-```
-
-### 🗺️ The model
-
-```
-fresh Ubuntu Server minimal  ──┐
-                               ├── [install commands] ──▶ current desktop
-current desktop state        ──┘           ▲
-       │                                   │
-       └── [reset commands] ───────────────┘
-              (back to near-baseline)
-```
-
-### 💻 Commands
-
-**▶️ Install (rebuild the whole desktop from a fresh install):**
-
-Follow the numbered [📥 Installation](#-installation) flow — it is the
-authoritative, in-order command list:
-
-```bash
-# Step 1-2: install Ubuntu Server "Minimized" from the ISO, verify it boots
-# Step 3:   strip to a pure base (purge snaps, cloud-init, leftovers)
-# Step 4:   switch to the interim cadence (Prompt=normal + do-release-upgrade)
-# Step 5:   repos + every package (plasma-desktop core, konsole, nvidia, fonts, …)
-# Step 6:   NVIDIA kernel cmdline + VRAM fix + groups
-# Step 7:   copy the configs from this repo into ~/.config/
-# Step 8:   reboot → SDDM → Plasma (Wayland)
-```
-
-**⏹️ Reset (undo everything, back to near-baseline):**
+### ↩️ Reset — back to a clean server
 
 ```bash
 sudo apt-get remove -y --purge plasma-desktop plasma-session-wayland kwin-wayland \
@@ -1477,39 +1203,10 @@ sudo apt-get update && sudo apt-get autoremove --purge -y
 > [!TIP]
 > Dry-run any apt operation first with `--dry-run` / `-s`.
 
-### 🚫 What the commands do NOT touch (by design)
-
-| Untouched | Why |
-|---|---|
-| `linux-generic` kernel, GRUB/EFI, Secure Boot | installer-level — never fiddled with |
-| `~/.ssh/authorized_keys` + `.bashrc` PATH line | personal access + your env stays intact |
-| Home data (`~/Pictures`, etc.) | reset only touches system state |
-| Plasma configs (`~/.config/kwinrc`, `plasma-*`, …) | delete manually if you want factory defaults |
-
-### 🗃️ Reference snapshots
-
-Current machine state (snapshot 2026-08-11, after the audit pass: nala/gum
-purged, de-branding applied): **1,468 packages** installed, **89 manually
-installed**, **29 enabled services** (fwupd is socket-activated +
-`fwupd-refresh.timer`; `motd-news.timer` disabled). Regenerate these lists
-anytime with:
-
-```bash
-apt-mark showmanual | sort > /tmp/manual-packages-current.txt
-dpkg-query -W -f='${Package} ${Version}\n' | sort > /tmp/all-installed.txt
-systemctl list-unit-files --type=service --state=enabled --no-pager | \
-  grep enabled | awk '{print $1}' | sort > /tmp/enabled-services.txt
-```
-
-### ✅ After a reinstall, checklist
-
-| # | Check | Expect |
-|---|---|---|
-| 1 | `systemctl status sddm` | login manager **up** |
-| 2 | `pgrep -a kwin_wayland` | compositor **running** |
-| 3 | `pgrep -a plasmashell` | shell **running** |
-| 4 | `nvidia-smi` | dGPU driver **loaded** |
-| 5 | `nmcli device wifi list` | WiFi via NetworkManager |
+**Not touched by the reset (by design):** `linux-generic` kernel, GRUB/EFI,
+Secure Boot · `~/.ssh/authorized_keys` + `.bashrc` PATH line · home data
+(`~/Pictures`, etc.) · Plasma configs (`~/.config/kwinrc`, `plasma-*`, …) —
+delete manually if you want factory defaults.
 
 ---
 
@@ -1521,7 +1218,7 @@ skips prompts, `--check` dry-runs).
 
 | | |
 |---|---|
-| **Status** | **WIP stub** — covers the 2026-08-07 desktop pass + 2026-08-11 de-brand step; the dev-tools pass (Docker/Node/Rust/Go) and the full reinstall flow are next |
+| **Status** | covers the desktop pass (firewall, firmware, Kröhnkite, configs, de-brand); the dev-tools pass (Docker/Node/Rust/Go) and the full reinstall flow are next |
 | **Run it** | `bash setup.sh` (or `bash setup.sh --check` to preview) |
 | **Steps** | 1) apt: kpackagetool6, firewalld, plasma-firewall, fwupd, ksystemstats · 2) enable firewalld + allow `ssh` · 3) `fwupdmgr refresh` · 4) copy tracked configs from `home/` into `~/.config` (incl. `kwinrulesrc` + the `disubuntu` Konsole profile into `~/.local/share/konsole`) · 5) install + enable Kröhnkite from `vendor/krohnkite/` and reconfigure KWin · 6) de-brand: remove SDDM `ubuntu-theme`, disable Ubuntu MOTD scripts + `motd-news` (config + timer) |
 | **Idempotent** | safe to re-run — packages/script/config already present are skipped |
@@ -1530,17 +1227,6 @@ skips prompts, `--check` dry-runs).
 ---
 
 ## ❓ FAQ
-
-**"Why Plasma now, instead of the niri + quickshell stack?"** The hand-rolled
-stack was ~2 processes at idle, but every extra feature (lock screen, power
-management, network/audio applets, settings) was hand-built or missing. Plasma
-6 gives the *complete* desktop — widgets, settings, lock, power, tray,
-screenshots — as one supported, pure-Wayland unit. The lean rules still apply:
-no indexers, no snaps, no app bundle — **except** dolphin (file manager) and
-konsole (terminal), adopted 2026-08-06. Cost: ~31 idle session
-processes (incl. KWin's rootless Xwayland + its tray bridges) and ~480 more
-packages (Qt6 + KF6).
-Details in [step 9](#9️⃣-the-niri--plasma-migration-done-2026-08-06).
 
 **"Why not just install Ubuntu Desktop?"** It ships GNOME, snaps, and hundreds
 of packages we'd never use. This setup starts from the *minimized server* base
@@ -1554,36 +1240,20 @@ and Plasma — especially relevant for the NVIDIA driver, which improves fast.
 **This machine is on Ubuntu 26.04 LTS today; next stop is the 26.10 interim
 release in October 2026** (`sudo do-release-upgrade` when it lands).
 
+**"Why only two KDE apps?"** Plasma is the desktop, not an app bundle —
+`dolphin` (files) + `konsole` (terminal) cover the daily needs; everything
+else (browser, editor) is a separate, explicit choice.
+
 **"Is this stable enough for daily use?"** Yes — Plasma 6 Wayland on NVIDIA is
 a mature, supported combination. The main caveats are the known NVIDIA quirks
-(documented in [🎮 NVIDIA](#-nvidia)) and the open refinements in
-[🚧 Work In Progress](#-work-in-progress).
+(document in [🎮 NVIDIA](#-nvidia)) and the troubleshooting table.
 
-**"Where are the panels/widgets?"** Plasma's default two panels. Right-click a
+**"Where are the panels/widgets?"** One floating top panel. Right-click a
 panel → Edit Mode to move/add widgets; the layout is backed up to this repo.
 
 **"How do I update everything?"** `sudo apt update && sudo apt upgrade`
 (weekly, see [🧹 Maintenance](#-maintenance--service-inventory)). For the
 distro itself: `sudo do-release-upgrade` every 6 months.
 
-**"How do I reset back to a clean server?"** The [📜 Provisioning & Baseline](#-provisioning--baseline)
+**"How do I reset back to a clean server?"** The [🧹 Maintenance](#-maintenance--service-inventory)
 section has the exact reset commands.
-
----
-
-## ℹ️ Quick facts
-
-| | |
-|---|---|
-| 🖥️ **OS** | Ubuntu **26.04 LTS today**, **26.10 interim from Oct 2026** — fresh *minimized server* base |
-| 📆 **Release plan** | `sudo do-release-upgrade` to the next interim release every 6 months (26.10 in Oct 2026) |
-| 🪟 **Desktop** | KDE Plasma 6 — full core, **Wayland only**, exactly two KDE apps (dolphin + konsole) |
-| 🗂️ **Tiling** | Kröhnkite 0.9.9.2 dynamic tiling (+ native KWin tiling fallback) |
-| 🧱 **Shell** | plasmashell — panels + widgets + tray (native) |
-| 🚀 **Launcher** | KRunner (Meta) |
-| 💻 **Terminal** | Konsole (KDE Plasma default) |
-| 🌍 **Browser** | Helium — Chromium fork, real `.deb`, no snap |
-| 🔑 **Login** | SDDM (breeze) |
-| 🔥 **Firewall** | firewalld + plasma-firewall KCM; firmware via fwupd |
-| 🖥️ **Display stack** | Wayland only (no X session); rootless Xwayland carries only KDE's tray bridges — user apps are Wayland-native |
-| 🎯 **Policy** | only necessary packages; no indexers, no snaps, no KDE app bundle — except dolphin + konsole |
