@@ -1,14 +1,14 @@
 # 🐧 disubuntu · Ubuntu interim
 
 An **Ubuntu interim-based setup, lean by design** — a pure-Wayland desktop on
-**KDE Plasma 6** (minimal, full-functional core: exactly two KDE apps —
-dolphin + konsole, no indexers, no snaps) that gets refreshed on the
-**6-month interim release cadence**.
+**KDE Plasma 6** (minimal, full-functional core: exactly four KDE apps —
+dolphin, konsole, kdeconnect, ark — no indexers, no snaps) that gets
+refreshed on the **6-month interim release cadence**.
 
 | Summary | |
 |---|---|
 | 🖥️ **OS** | Ubuntu **26.04 LTS (Resolute)** → **26.10 (Stonking Stingray)** interim via `do-release-upgrade` — Server *minimized* base |
-| 🪟 **Desktop** | [KDE Plasma 6](https://kde.org/plasma-desktop/) — **Wayland only** (`kwin_wayland`), full core: widgets, panels, settings — exactly two KDE apps: dolphin + konsole |
+| 🪟 **Desktop** | [KDE Plasma 6](https://kde.org/plasma-desktop/) — **Wayland only** (`kwin_wayland`), full core: widgets, panels, settings — exactly four KDE apps: dolphin + konsole + kdeconnect + ark |
 | 🗂️ **Tiling** | **Kröhnkite** (dynamic tiling KWin script, only third-party component) + native KWin tiling fallback |
 | 🔥 **Firewall** | firewalld + plasma-firewall KCM (`public` zone, `ssh`+`dhcpv6-client`) · firmware via fwupd |
 | 🔑 **Login** | [SDDM](https://github.com/sddm/sddm) (breeze theme) — native Plasma display manager |
@@ -311,13 +311,25 @@ sudo apt install -y firewalld plasma-firewall fwupd
 
 # Dynamic tiling (KWin script installer)
 sudo apt install -y kpackagetool6
+
+# Phone integration (KDE Connect) + archive manager (Ark)
+sudo apt install -y --no-install-recommends kdeconnect ark
+```
+
+**KDE Connect firewall rule** — without it the phone pair/transfer silently
+fails (firewalld blocks 1714–1764 by default; firewalld ships a ready service
+definition):
+
+```bash
+sudo firewall-cmd --permanent --add-service=kdeconnect
+sudo firewall-cmd --reload
 ```
 
 **What the `--no-install-recommends` intentionally leaves out** (bloat or
 backends we don't have): `plasma-discover` (app store), `plasma-browser-integration`,
 `plasma-vault` (needs cryfs), `plasma-thunderbolt`,
 `bluedevil` (no bluez), `plasma-disks` (needs udisks2), `khelpcenter`, `kgamma`,
-plus the rest of the KDE app suite (`kde-baseapps`: kate, gwenview, ark, elisa…).
+plus the rest of the KDE app suite (`kde-baseapps`: kate, gwenview, elisa…).
 `setup.sh` is plain bash — no `nala`, no `gum`; plain apt is the package
 manager. No kwin-x11 — **Wayland only**, no X session.
 
@@ -558,6 +570,8 @@ What runs, what each piece does, and every installed package by category.
 | **Terminal** | **Konsole** | KDE Plasma default, Wayland native — `disubuntu` profile (JetBrains Mono 11, 15% translucent, blur) |
 | **System monitor** | **ksystemstats** + native System Monitor applets | CPU + Memory widgets in the panel — no third-party widgets |
 | **File manager** | **Dolphin** | `Meta+E`; uses the dormant `udisks2` for mounting |
+| **Phone integration** | **KDE Connect** (`kdeconnect`) | notifications, clipboard sync, file transfer, remote input — ports 1714–1764 open in firewalld (`kdeconnect` service) |
+| **Archives** | **Ark** | zip/tar/7z/rar archive manager — opens in Dolphin |
 | **Clipboard** | Plasma clipboard + **wl-clipboard** | both installed; plasma's clipboard has history |
 | **Backlight keys** | **powerdevil** | Plasma's power management handles brightness natively |
 | **Audio** | **pipewire + wireplumber + plasma-pa** | volume keys in KWin |
@@ -570,7 +584,7 @@ What runs, what each piece does, and every installed package by category.
 
 | Not installed | Why we skip it |
 |---|---|
-| Rest of the KDE app suite (`kde-baseapps`: kate, gwenview, ark, elisa, …) | Plasma is the desktop, not an app bundle — dolphin/konsole/helium cover the needs |
+| Rest of the KDE app suite (`kde-baseapps`: kate, gwenview, elisa, …) | Plasma is the desktop, not an app bundle — dolphin/konsole/helium cover the needs |
 | `plasma-discover` | GUI app store — we use plain `apt` |
 | `nala` · `gum` | third-party helpers — plain apt covers everything |
 | `baloo` indexer daemon | **installed as a dolphin hard-dep, but disabled** (`balooctl6 disable`) — zero background indexing |
@@ -609,6 +623,8 @@ What runs, what each piece does, and every installed package by category.
 | `konsole` | terminal emulator (default) — `disubuntu` translucent profile |
 | `ksystemstats` | system-stats daemon backing the panel's CPU/Memory monitor applets |
 | `dolphin` | file manager (`Meta+E`) |
+| `kdeconnect` | phone integration — notifications, clipboard sync, file transfer (requires the firewalld `kdeconnect` service) |
+| `ark` | archive manager — zip/tar/7z |
 | `helium-bin` | the browser (real .deb) |
 | `wl-clipboard` | `wl-copy` / `wl-paste` |
 | `gh` · `git` | GitHub CLI + version control |
@@ -631,9 +647,10 @@ What runs, what each piece does, and every installed package by category.
 | `xdg-desktop-portal*` (kde + document + permission) | 2-3 | portals |
 | `pipewire` + `pipewire-pulse` + `wireplumber` | 3 | audio |
 | `ksystemstats` | 1 | system-monitor daemon (panel CPU/Memory applets) |
-| **total** | **~31** | session processes with the browser closed (systemd on top); ~75 with Helium + its crashpad open |
+| `kdeconnectd` | 1 | KDE Connect daemon (phone pairing, file transfer) |
+| **total** | **~32** | session processes with the browser closed (systemd on top); ~76 with Helium + its crashpad open |
 
-That's the honest cost of a full desktop: **~31 session processes at idle**
+That's the honest cost of a full desktop: **~32 session processes at idle**
 (including Plasma's own helper daemons — kwalletd6, ksecretd, gnome-keyring,
 at-spi a11y, dconf, the two Xwayland tray bridges, plus KWin's rootless
 Xwayland) — in exchange for the complete, supported Plasma feature set
@@ -1191,7 +1208,7 @@ sudo apt-get remove -y --purge plasma-desktop plasma-session-wayland kwin-waylan
   breeze breeze-gtk-theme xdg-desktop-portal-kde kde-config-gtk-style \
   kde-config-screenlocker kactivitymanagerd kmenuedit kde-spectacle kinfocenter \
   helium-bin wl-clipboard pipewire pipewire-pulse wireplumber \
-  dolphin konsole
+  dolphin konsole kdeconnect ark
 balooctl6 disable   # (after dolphin purge, baloo6 is a plain unused lib)
 sudo apt-get purge --dry-run nvidia-driver-595   # review, then drop --dry-run
 sudo systemctl disable --now sddm network-manager wpa_supplicant
@@ -1240,8 +1257,9 @@ and Plasma — especially relevant for the NVIDIA driver, which improves fast.
 **This machine is on Ubuntu 26.04 LTS today; next stop is the 26.10 interim
 release in October 2026** (`sudo do-release-upgrade` when it lands).
 
-**"Why only two KDE apps?"** Plasma is the desktop, not an app bundle —
-`dolphin` (files) + `konsole` (terminal) cover the daily needs; everything
+**"Why only four KDE apps?"** Plasma is the desktop, not an app bundle —
+`dolphin` (files) + `konsole` (terminal) cover the daily needs, `kdeconnect`
+(phone) and `ark` (archives) fill the two remaining everyday gaps; everything
 else (browser, editor) is a separate, explicit choice.
 
 **"Is this stable enough for daily use?"** Yes — Plasma 6 Wayland on NVIDIA is

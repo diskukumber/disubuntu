@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-PASS="desktop-debrand-2026-08-11"    # bump when a new pass is merged
+PASS="apps-2026-08-11"    # bump when a new pass is merged
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DRY=""
 ASSUME_YES=""
@@ -57,6 +57,15 @@ run "Installing packages (official Ubuntu repos)" \
 confirm_step "firewall: enable firewalld + allow ssh" && {
   run "Enabling firewalld" sudo systemctl enable --now firewalld
   run "Allowing ssh (openssh-server is installed)" sudo firewall-cmd --permanent --add-service=ssh
+  run "Reloading firewall" sudo firewall-cmd --reload
+}
+
+# ── 2b. kdeconnect + ark (phone integration + archive manager) ───────────────
+confirm_step "apps: kdeconnect (phone) + ark (archives) + firewalld service" && {
+  run "Installing kdeconnect + ark" \
+    sudo apt-get install -y --no-install-recommends kdeconnect ark
+  run "Opening KDE Connect ports (firewalld kdeconnect service)" \
+    sudo firewall-cmd --permanent --add-service=kdeconnect
   run "Reloading firewall" sudo firewall-cmd --reload
 }
 
