@@ -1,17 +1,10 @@
-# --- nala (apt with nice looks) ---
-# type `apt`/`sudo apt …` and get nala:
-# the trailing space on `sudo` lets the NEXT word expand as an alias,
-# so `sudo apt install x` becomes `sudo nala install x`.
-# (apt-mark / apt-cache / dpkg have no nala equivalent — use them directly)
-alias sudo='sudo '
-alias apt='nala'
-alias apt-get='nala'
-alias i='nala install'
-alias r='nala remove'
-alias s='nala search'
-alias u='nala update'
-alias up='nala upgrade'
-alias nf='nala fetch'
+# --- package manager (plain apt — no nala) ---
+# apt/apt-get need no aliases; these are the convenience shortcuts:
+alias i='sudo apt install'      # install
+alias r='sudo apt remove'       # remove
+alias s='apt search'            # search
+alias u='sudo apt update'       # refresh package lists
+alias up='sudo apt upgrade'     # upgrade
 
 # --- base ---
 alias upg='sudo apt-get upgrade -y'
