@@ -30,7 +30,7 @@ screenGapBetween=10
 screenGapBottom=10
 screenGapLeft=10
 screenGapRight=10
-screenGapTop=10
+screenGapTop=14
 
 [Tiling][36eb5a81-59e2-463c-b90f-1d9c4e359880][0f81b746-2d46-40d6-b70f-d26d3b7b38d1]
 padding=4
@@ -82,6 +82,7 @@ tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"wi
 
 [Windows]
 ActiveMouseScreen=true
+BorderlessMaximizedWindows=true
 BorderSnapZone=0
 FocusPolicy=FocusFollowsMouse
 Placement=Centered
@@ -97,7 +98,7 @@ BorderSize=Normal
 BorderSize=Normal
 ButtonsOnLeft=
 ButtonsOnRight=
-theme=ActiveAccentFrame
+theme=Breeze
 
 [TabBox]
 MultiScreenMode=1

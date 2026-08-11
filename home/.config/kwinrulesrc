@@ -1,0 +1,9 @@
+[General]
+rules=1
+
+[1]
+Description=Global: no titlebar and frame
+Enabled=true
+wmclassmatch=0
+decorationpolicy=none
+decorationpolicyrule=2

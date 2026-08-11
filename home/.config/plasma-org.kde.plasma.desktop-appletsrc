@@ -20,12 +20,15 @@ wallpaperplugin=org.kde.color
 DialogHeight=630
 DialogWidth=810
 
+[Containments][21][Wallpaper][org.kde.color][General]
+Color=73,166,234
+
 [Containments][22]
 activityId=
 formfactor=2
 immutability=1
 lastScreen=0
-location=4
+location=3
 plugin=org.kde.panel
 wallpaperplugin=org.kde.image
 
@@ -149,8 +152,12 @@ highPrioritySensorIds=["memory/physical/used"]
 lowPrioritySensorIds=["memory/physical/total"]
 totalSensors=["memory/physical/usedPercent"]
 
+[Containments][22][Applets][45]
+immutability=1
+plugin=org.kde.plasma.panelspacer
+
 [Containments][22][General]
-AppletOrder=24;23;27;43;44;37
+AppletOrder=24;23;45;27;43;44;37
 
 [Containments][41]
 activityId=3fe55e0c-3cf8-4aab-b448-c48b63f9d8db
